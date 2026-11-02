@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { nullableOrNull } from '../../document-enrichment.schemas';
 import { defineDocumentEnrichmentCapabilityFactory } from '../enrichment-capabilities-definition';
 import type { Config } from '../../../config/config.types';
 import type { EventServices } from '../../../app/events/events.services';
@@ -38,7 +39,7 @@ export const buildTitleEnrichmentCapability = defineDocumentEnrichmentCapability
         ].join('\n'),
       }),
 
-      getResponseSchema: () => v.object({ title: v.nullable(v.string()) }),
+      getResponseSchema: () => v.object({ title: nullableOrNull(v.string()) }),
 
       apply: async ({ response, documentId, organizationId }) => {
         // Re-read right before writing so a rename made while the AI was running wins

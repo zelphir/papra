@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { nullableOrNull } from '../../document-enrichment.schemas';
 import { defineDocumentEnrichmentCapabilityFactory } from '../enrichment-capabilities-definition';
 import type { Config } from '../../../config/config.types';
 import type { EventServices } from '../../../app/events/events.services';
@@ -37,7 +38,7 @@ export const buildDateEnrichmentCapability = defineDocumentEnrichmentCapabilityF
         ].join('\n'),
       }),
 
-      getResponseSchema: () => v.object({ documentDate: v.nullable(v.string()) }),
+      getResponseSchema: () => v.object({ documentDate: nullableOrNull(v.string()) }),
 
       apply: async ({ response, documentId, organizationId }) => {
         // Re-read right before writing so a date set while the AI was running wins

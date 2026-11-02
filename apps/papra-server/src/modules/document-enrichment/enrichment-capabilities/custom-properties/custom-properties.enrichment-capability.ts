@@ -9,7 +9,10 @@ import type { OrganizationsRepository } from '../../../organizations/organizatio
 import { isErrorWithCode } from '../../../shared/errors/errors';
 import { createLogger } from '../../../shared/logger/logger';
 import { setDocumentCustomPropertyValue } from '../../../custom-properties/custom-properties.usecases';
-import { createCustomPropertyValueInvalidError } from '../../../custom-properties/custom-properties.errors';
+import {
+  createCustomPropertyDefinitionNotFoundError,
+  createCustomPropertyValueInvalidError,
+} from '../../../custom-properties/custom-properties.errors';
 import { createCustomPropertySelectOptionNotFoundError } from '../../../custom-properties/options/custom-properties-options.errors';
 import {
   buildCustomPropertiesPromptFragment,
@@ -21,6 +24,8 @@ import {
 const INVALID_VALUE_ERROR_CODES = [
   createCustomPropertyValueInvalidError().code,
   createCustomPropertySelectOptionNotFoundError().code,
+  // The definition was deleted while the AI was running
+  createCustomPropertyDefinitionNotFoundError().code,
 ];
 
 export const buildCustomPropertiesEnrichmentCapability = defineDocumentEnrichmentCapabilityFactory(

@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { CUSTOM_PROPERTY_TYPES } from '../../../custom-properties/custom-properties.constants';
+import { nullableOrNull } from '../../document-enrichment.schemas';
 import { parseCalendarDate } from '../date/date.models';
 import type { EnrichmentCustomProperties } from '../enrichment-capabilities-definition';
 
@@ -60,12 +61,18 @@ export function getCustomPropertiesResponseSchema({
 }: {
   properties: PropertyDefinition[];
 }) {
-  return v.object({
-    customProperties: v.object(
-      Object.fromEntries(
-        properties.map((property) => [property.key, v.nullable(getPropertyValueSchema(property))]),
-      ),
+  const customPropertiesSchema = v.object(
+    Object.fromEntries(
+      properties.map((property) => [
+        property.key,
+        nullableOrNull(getPropertyValueSchema(property)),
+      ]),
     ),
+  );
+
+  return v.object({
+    // Every property falls back to null, so a missing or mangled object leaves the properties empty
+    customProperties: v.fallback(customPropertiesSchema, v.getFallbacks(customPropertiesSchema)),
   });
 }
 

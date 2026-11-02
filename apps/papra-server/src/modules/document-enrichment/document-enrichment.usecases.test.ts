@@ -491,7 +491,8 @@ describe('document enrichment', () => {
     expect(v.parse(request.schema!, { existingTags: ['Finance'] })).toEqual({
       existingTags: ['Finance'],
     });
-    expect(v.safeParse(request.schema!, { existingTags: ['Unknown'] }).success).toEqual(false);
+    // An unknown tag name is dropped instead of failing the whole response
+    expect(v.parse(request.schema!, { existingTags: ['Unknown'] })).toEqual({ existingTags: [] });
   });
 
   test('existing and new tag suggestions respect the organization limit and prefer existing tags', async () => {
@@ -540,9 +541,10 @@ describe('document enrichment', () => {
     `);
     const response = { existingTags: ['Finance'], newTags: [{ name: 'Invoice' }] };
     expect(v.parse(request.schema!, response)).toEqual(response);
-    expect(
-      v.safeParse(request.schema!, { existingTags: ['Unknown'], newTags: [] }).success,
-    ).toEqual(false);
+    expect(v.parse(request.schema!, { existingTags: ['Unknown'], newTags: [] })).toEqual({
+      existingTags: [],
+      newTags: [],
+    });
   });
 
   test('when the AI proposes new tags, they are created and applied to the document', async () => {

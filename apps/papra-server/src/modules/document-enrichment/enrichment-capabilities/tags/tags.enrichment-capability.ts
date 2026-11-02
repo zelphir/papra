@@ -65,19 +65,25 @@ export const buildTagsEnrichmentCapability = defineDocumentEnrichmentCapabilityF
 
         if (canCreateNewTags && hasExistingTags) {
           return v.object({
-            existingTags: v.array(v.picklist(tags.map((tag) => tag.name))),
-            newTags: v.array(v.object({ name: v.string(), description: v.optional(v.string()) })),
+            existingTags: v.fallback(v.array(v.picklist(tags.map((tag) => tag.name))), []),
+            newTags: v.fallback(
+              v.array(v.object({ name: v.string(), description: v.optional(v.string()) })),
+              [],
+            ),
           });
         }
 
         if (canCreateNewTags && !hasExistingTags) {
           return v.object({
-            newTags: v.array(v.object({ name: v.string(), description: v.optional(v.string()) })),
+            newTags: v.fallback(
+              v.array(v.object({ name: v.string(), description: v.optional(v.string()) })),
+              [],
+            ),
           });
         }
 
         return v.object({
-          existingTags: v.array(v.picklist(tags.map((tag) => tag.name))),
+          existingTags: v.fallback(v.array(v.picklist(tags.map((tag) => tag.name))), []),
         });
       },
 

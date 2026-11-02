@@ -146,7 +146,8 @@ async function createTestDeps({
   const { logger, getLogs } = createTestLogger();
   const generateStructuredData = vi
     .fn<AiServices['generateStructuredData']>()
-    .mockResolvedValue(response);
+    // Validates the raw reply against the request schema, as the real library does
+    .mockImplementation(async ({ schema }) => v.parse(schema!, response) as never);
 
   const customPropertiesCapability = buildCustomPropertiesEnrichmentCapability({
     config,
@@ -236,9 +237,14 @@ describe('custom properties enrichment capability', () => {
     expect(request.systemPrompt).not.toContain('"key":"owner"');
     expect(request.systemPrompt).not.toContain('"key":"related"');
     expect(request.systemPrompt).not.toContain('"key":"status"');
-    // Required but nullable: an empty answer is rejected, an abstention is accepted
+    // Required but nullable: an empty or missing answer falls back to abstaining, an abstention is accepted
     const { schema } = request;
-    expect(v.safeParse(schema!, { customProperties: {} }).success).toBe(false);
+    expect(v.parse(schema!, { customProperties: {} })).toMatchObject({
+      customProperties: {
+        reference: null,
+        topics: null,
+      },
+    });
     expect(
       v.safeParse(schema!, {
         customProperties: Object.fromEntries(
@@ -398,13 +404,95 @@ describe('custom properties enrichment capability', () => {
 
     await deps.enrichDocument(documentIds);
 
-    const filled = (await deps.getValues()).map(({ value }) => value.propertyDefinitionId).sort();
+    const filled = [
+      ...new Set((await deps.getValues()).map(({ value }) => value.propertyDefinitionId)),
+    ].sort();
     expect(filled).toEqual(['cpd_bool', 'cpd_text']);
-    expect(
-      deps
-        .getLogs()
-        .some(({ message }) => message.includes('invalid AI suggested custom property value')),
-    ).toBe(true);
+  });
+
+  test('a property whose definition is deleted while the AI runs is skipped and the others are still written', async () => {
+    const deps = await createTestDeps();
+    const getPropertyDefinitionById = deps.customPropertiesRepository.getPropertyDefinitionById;
+    vi.spyOn(deps.customPropertiesRepository, 'getPropertyDefinitionById').mockImplementation(
+      async (args) =>
+        args.propertyDefinitionId === 'cpd_number'
+          ? { definition: undefined }
+          : getPropertyDefinitionById(args),
+    );
+
+    await deps.enrichDocument(documentIds);
+
+    const filled = [
+      ...new Set((await deps.getValues()).map(({ value }) => value.propertyDefinitionId)),
+    ].sort();
+    expect(filled).toEqual(['cpd_bool', 'cpd_date', 'cpd_multi', 'cpd_select', 'cpd_text']);
+  });
+
+  test('a reply without the custom properties changes nothing and does not fail', async () => {
+    const deps = await createTestDeps({ response: {} });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await deps.getValues()).toEqual([]);
+  });
+
+  test('a reply with invalid fields still applies the valid tags, title, date and properties', async () => {
+    const deps = await createTestDeps({
+      withOthers: true,
+      response: {
+        existingTags: ['Unknown'],
+        title: 'Electricity bill',
+        documentDate: '2024-03-15',
+        customProperties: {
+          ...fullResponse.customProperties,
+          category: 'Receipt',
+          amount: '1,200',
+          paid: 'yes',
+        },
+      },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await deps.db.select().from(documentsTagsTable)).toEqual([]);
+    expect((await deps.documentsRepository.getDocumentById(documentIds)).document).toMatchObject({
+      name: 'Electricity bill.pdf',
+      documentDate: new Date('2024-03-15T12:00:00.000Z'),
+    });
+    const filled = [
+      ...new Set((await deps.getValues()).map(({ value }) => value.propertyDefinitionId)),
+    ].sort();
+    expect(filled).toEqual(['cpd_date', 'cpd_multi', 'cpd_text']);
+  });
+
+  test('a reply without a title keeps the document name and still applies the other fields', async () => {
+    const deps = await createTestDeps({
+      withOthers: true,
+      response: { existingTags: ['Finance'], documentDate: '2024-03-15', ...fullResponse },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect((await deps.documentsRepository.getDocumentById(documentIds)).document).toMatchObject({
+      name: 'SCAN_0001.pdf',
+      documentDate: new Date('2024-03-15T12:00:00.000Z'),
+    });
+    expect(await deps.db.select().from(documentsTagsTable)).toHaveLength(1);
+  });
+
+  test('every capability response schema still sends its enum options to strict JSON schema providers', async () => {
+    const deps = await createTestDeps({ withOthers: true });
+    await deps.enrichDocument(documentIds);
+    const [{ schema }] = deps.generateStructuredData.mock.calls[0]!;
+
+    const jsonSchema = JSON.stringify(
+      toStandardJsonSchema(schema!)['~standard'].jsonSchema.input({ target: 'draft-07' }),
+    );
+
+    for (const option of ['Invoice', 'Quote', 'Energy', 'Home', 'Finance']) {
+      expect(jsonSchema).toContain(`"${option}"`);
+    }
+    expect(jsonSchema).toContain('"enum"');
   });
 
   test('an unexpected error while writing surfaces so the job can fail', async () => {
