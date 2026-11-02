@@ -1,11 +1,11 @@
-EF: Look Scanned
+F4 Look Scanned
 Comment Utiliser Look Scanned pour
 Numériser vos Documents
 Look Scanned vous permet de transformer facilement vos
 documents en versions numérisées d'aspect professionnel. Voici
 comment procéder :
 Importez votre Fichier
-Cliquez sur le bouton "Importer un Fichier" ou glissez-déposez
+Cliquez sur le bouton ‘Importer un Fichier" ou glissez-déposez
 directement votre document sur la page. Look Scanned prend en
 charge de nombreux formats : PDF, images (JPG, PNG), DOCX, PPTX,
 Excel, Markdown, HTML et TXT. Dès que votre fichier est importé, un
@@ -22,9 +22,9 @@ Look Scanned traite les documents de plusieurs pages en maintenant
 une apparence cohérente sur l'ensemble du document.
 Téléchargez votre Document
 Une fois satisfait du résultat, cliquez sur "Générer le Document
-Numérisé”. Le traitement ne prend que quelques secondes. Vous
+Numérisé", Le traitement ne prend que quelques secondes. Vous
 pourrez ensuite télécharger votre fichier en cliquant sur
-"Télécharger". Tout le processus s'effectue localement sur votre
+“Télécharger”. Tout le processus s'effectue localement sur votre
 appareil et nous ne conservons aucun contenu, garantissant ainsi la
 confidentialité de vos documents.
 

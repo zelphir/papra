@@ -92,7 +92,7 @@ async function ocrPdfImages({
       );
 
       const startTime = Date.now();
-      const imageBuffer = await pdfImageToBuffer(image);
+      const imageBuffer = await pdfImageToBuffer(image, { rotation: page.rotate });
       logger?.debug(
         { pageIndex, pageCount, durationMs: Date.now() - startTime },
         'Converted PDF image to PNG buffer for OCR.',
