@@ -1,8 +1,14 @@
+import { boolean, choice } from '@tanstack/ai';
 import * as v from 'valibot';
 import { CUSTOM_PROPERTY_TYPES } from '../../../custom-properties/custom-properties.constants';
 import { nullableOrNull } from '../../document-enrichment.schemas';
+import { isClearNo, isClearYes } from '../../document-enrichment.decisions';
 import { parseCalendarDate } from '../date/date.models';
-import type { EnrichmentCustomProperties } from '../enrichment-capabilities-definition';
+import type {
+  DecisionAnswer,
+  DecisionOutcome,
+  EnrichmentCustomProperties,
+} from '../enrichment-capabilities-definition';
 
 type PropertyDefinition = EnrichmentCustomProperties['definitions'][number];
 
@@ -139,4 +145,100 @@ export function toCustomPropertyValue({
     default:
       return value;
   }
+}
+
+// A choice question accepts up to 255 options, and one of them is the `none` option
+const MAX_DECISION_SELECT_OPTIONS = 254;
+const NO_OPTION_KEY = 'none';
+
+const isDecidableProperty = (property: PropertyDefinition) =>
+  property.type === CUSTOM_PROPERTY_TYPES.BOOLEAN ||
+  (property.type === CUSTOM_PROPERTY_TYPES.SELECT &&
+    property.options.length <= MAX_DECISION_SELECT_OPTIONS);
+
+const describeProperty = (property: PropertyDefinition) =>
+  `"${property.name}"${property.description ? ` (${property.description})` : ''}`;
+
+// Select and boolean properties are closed questions, the rest stays with the language model. Keys are property positions, never user-written strings.
+export function getCustomPropertiesDecisionQuestions(customProperties: EnrichmentCustomProperties) {
+  return Object.fromEntries(
+    getEligibleProperties(customProperties).flatMap((property, index) => {
+      if (!isDecidableProperty(property)) {
+        return [];
+      }
+
+      return [
+        [
+          `property_${index}`,
+          property.type === CUSTOM_PROPERTY_TYPES.BOOLEAN
+            ? boolean({
+                instructions: `Does the document clearly state that the property ${describeProperty(property)} is true?`,
+              })
+            : choice({
+                instructions: `Which option does the document clearly state for the property ${describeProperty(property)}?`,
+                options: {
+                  ...Object.fromEntries(
+                    property.options.map((option, optionIndex) => [
+                      `option_${optionIndex}`,
+                      option.name,
+                    ]),
+                  ),
+                  [NO_OPTION_KEY]: 'The document does not clearly state any of the options',
+                },
+              }),
+        ],
+      ];
+    }),
+  );
+}
+
+/**
+ * Writes the clearly answered properties, a clear `none` leaves a select empty. Everything else stays for the language model.
+ */
+export function resolveCustomPropertiesDecisions({
+  answers,
+  customProperties,
+}: {
+  answers: Record<string, DecisionAnswer>;
+  customProperties: EnrichmentCustomProperties;
+}): DecisionOutcome<ReturnType<typeof getCustomPropertiesResponseSchema>> {
+  const values: Record<string, boolean | string> = {};
+  const decidedIds = new Set<string>();
+
+  getEligibleProperties(customProperties).forEach((property, index) => {
+    const answer = answers[`property_${index}`];
+
+    if (!answer) {
+      return;
+    }
+
+    if (answer.type === 'boolean') {
+      if (isClearYes(answer.probability) || isClearNo(answer.probability)) {
+        values[property.key] = isClearYes(answer.probability);
+        decidedIds.add(property.id);
+      }
+      return;
+    }
+
+    if (!isClearYes(answer.probability)) {
+      return;
+    }
+
+    decidedIds.add(property.id);
+
+    if (answer.value !== NO_OPTION_KEY) {
+      values[property.key] = property.options[Number(answer.value.replace('option_', ''))]!.name;
+    }
+  });
+
+  const remaining = {
+    ...customProperties,
+    definitions: customProperties.definitions.filter(({ id }) => !decidedIds.has(id)),
+  };
+
+  return {
+    response: { customProperties: values },
+    isSettled: getEligibleProperties(remaining).length === 0,
+    customProperties: remaining,
+  };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  MAX_DECISION_CONTENT_LENGTH,
   MAX_ENRICHMENT_CONTENT_LENGTH,
   truncateEnrichmentContent,
 } from './document-enrichment.models';
@@ -20,6 +21,16 @@ describe('document enrichment models', () => {
       expect(result.length).toBeLessThanOrEqual(MAX_ENRICHMENT_CONTENT_LENGTH);
       expect(result.startsWith('START')).toEqual(true);
       expect(result.endsWith('END')).toEqual(true);
+      expect(result).toContain('[... content truncated ...]');
+    });
+
+    test('a custom maximum length caps the content for the decision model', () => {
+      const result = truncateEnrichmentContent({
+        content: 'a'.repeat(MAX_ENRICHMENT_CONTENT_LENGTH),
+        maxLength: MAX_DECISION_CONTENT_LENGTH,
+      });
+
+      expect(result.length).toBeLessThanOrEqual(MAX_DECISION_CONTENT_LENGTH);
       expect(result).toContain('[... content truncated ...]');
     });
 

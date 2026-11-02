@@ -17,7 +17,9 @@ import { createCustomPropertySelectOptionNotFoundError } from '../../../custom-p
 import {
   buildCustomPropertiesPromptFragment,
   getCustomPropertiesResponseSchema,
+  getCustomPropertiesDecisionQuestions,
   getEligibleProperties,
+  resolveCustomPropertiesDecisions,
   toCustomPropertyValue,
 } from './custom-properties.models';
 
@@ -64,6 +66,14 @@ export const buildCustomPropertiesEnrichmentCapability = defineDocumentEnrichmen
       getResponseSchema: ({ customProperties }) =>
         getCustomPropertiesResponseSchema({ properties: getEligibleProperties(customProperties) }),
 
+      decisions: {
+        getQuestions: ({ customProperties }) =>
+          getCustomPropertiesDecisionQuestions(customProperties),
+
+        resolve: ({ answers, customProperties }) =>
+          resolveCustomPropertiesDecisions({ answers, customProperties }),
+      },
+
       apply: async ({ response, documentId, organizationId, customProperties }) => {
         // Re-read right before writing so a document trashed or a value set while the AI was running wins
         const [{ document }, { values }] = await Promise.all([
@@ -83,7 +93,7 @@ export const buildCustomPropertiesEnrichmentCapability = defineDocumentEnrichmen
         for (const property of properties) {
           const value = toCustomPropertyValue({
             property,
-            value: response.customProperties[property.key],
+            value: response.customProperties?.[property.key],
           });
 
           if (value === undefined) {

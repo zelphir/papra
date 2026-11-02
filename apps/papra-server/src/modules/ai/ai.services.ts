@@ -23,6 +23,9 @@ import type { PlanEntitlementDefinitionRegistry } from '../plan-entitlements/pla
 import type { PlanEntitlementsRepository } from '../plan-entitlements/plan-entitlements.repository';
 import type { SubscriptionsRepository } from '../subscriptions/subscriptions.repository';
 
+// The adapter ignores its timeout option, only the abort signal cancels a call
+const DECISION_TIMEOUT_MS = 30_000;
+
 export type AiServices = ReturnType<typeof createAiServices>;
 
 // When no schema is provided, the model output is not constrained and the raw text is returned.
@@ -201,6 +204,7 @@ async function decide<Questions extends Record<string, WireQuestion>>({
       adapter: createTypesafeDecider(modelId, apiKey, { baseURL: baseUrl }),
       state,
       questions,
+      abortSignal: AbortSignal.timeout(DECISION_TIMEOUT_MS),
       // The adapter logs failures to the console itself, we log them below without the response detail
       debug: false,
       middleware: config.ai.credits.isEnabled

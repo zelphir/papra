@@ -1,4 +1,6 @@
+import { boolean } from '@tanstack/ai';
 import * as v from 'valibot';
+import { isClearYes } from '../../document-enrichment.decisions';
 import { nullableOrNull } from '../../document-enrichment.schemas';
 import { defineDocumentEnrichmentCapabilityFactory } from '../enrichment-capabilities-definition';
 import type { Config } from '../../../config/config.types';
@@ -40,6 +42,20 @@ export const buildTitleEnrichmentCapability = defineDocumentEnrichmentCapability
       }),
 
       getResponseSchema: () => v.object({ title: nullableOrNull(v.string()) }),
+
+      decisions: {
+        getQuestions: () => ({
+          clear: boolean({
+            instructions: 'Is this filename already clear and descriptive of the document?',
+          }),
+        }),
+
+        // A clear filename needs no new title
+        resolve: ({ answers }) =>
+          isClearYes(answers.clear!.probability)
+            ? { response: { title: null }, isSettled: true }
+            : { response: {}, isSettled: false },
+      },
 
       apply: async ({ response, documentId, organizationId }) => {
         // Re-read right before writing so a rename made while the AI was running wins

@@ -69,6 +69,16 @@ Once enabled, every time a document is added to Papra its extracted content is s
 Tag descriptions matter. The LLM uses each tag's name **and** description to decide what is relevant, so adding clear descriptions to your tags significantly improves the quality of the suggestions.
 :::
 
+## Decision model (optional)
+
+You can set `AI_DECISION_MODEL` and `TYPESAFE_API_KEY` to use a [TypeSafe](https://typesafe.ai) Jev decision model. Setting both is the only switch, it is off otherwise.
+
+When enabled, Papra first asks it closed yes/no questions: is the filename already clear, which existing tags are relevant (only when **Create new tags** is disabled, up to 100 tags), and the value of boolean and single select custom properties. Only clear answers are used, everything else is still handled by your LLM, and the LLM is not called at all when nothing is left for it. If the decision model is unreachable, slow or fails, your LLM handles everything as if it was not configured.
+
+:::caution
+The document name and up to 10,000 characters of its text (from the start and end of long documents) are sent to TypeSafe for each enrichment. TypeSafe lists Jev at $0.042 per million input tokens, with output tokens free. Its savings against your language model have not been measured.
+:::
+
 ## Troubleshooting
 
 If auto tagging is not working as expected:

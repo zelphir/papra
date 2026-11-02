@@ -188,6 +188,23 @@ describe('ai services', () => {
       expect(result.meta.usage.promptTokens).to.eql(120);
     });
 
+    test('a decision that takes longer than 30 seconds is cancelled and rejects like any other failure', async () => {
+      const server = createServer(() => {});
+      servers.push(server);
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      const { aiServices } = await createTestAiServices({
+        decisions: { modelId: 'jev-latest', apiKey: API_KEY, baseUrl },
+      });
+      const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+      const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => realTimeout(20));
+
+      await expect(aiServices.decide(decideArgs)).rejects.toMatchObject({ name: 'TimeoutError' });
+      expect(timeoutSpy).toHaveBeenCalledWith(30_000);
+
+      timeoutSpy.mockRestore();
+    });
+
     describe('ai credits', () => {
       test('when credits are enabled and the organization has exhausted its credits, the decision is blocked before any call', async () => {
         const { requests, baseUrl } = await startFakeTypesafeServer();
