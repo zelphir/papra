@@ -1,90 +1,173 @@
 ---
-title: Document auto tagging
-description: Automatically tag your documents based on their content using AI.
+title: AI document enrichment
+description: Let AI fill in tags, titles, dates and custom properties of your documents from their content.
 slug: guides/auto-tagging
 ---
 
-This guide shows you how to set up AI-powered auto tagging for your documents.
+This guide shows you how to set up AI document enrichment: tags, titles, dates and custom property values that Papra can suggest from a document's content.
 
-## What is auto tagging?
+## What it does
 
-Once a document's content has been extracted, Papra can automatically apply the most relevant tags based on that content. This is done using an LLM, which analyzes the text and suggests appropriate tags from your existing tags and their descriptions. You can also let it create new tags when none of the existing ones are relevant.
+Once a document's content has been extracted, Papra can use an LLM to fill in:
 
-The configuration lives per-organization, so each organization can independently:
-- Enable or disable auto tagging
-- Choose whether to create new tags
-- Limit the number of tags applied to each document
+- **Tags**, chosen from your existing tags, and optionally new ones.
+- **A descriptive title**, for documents that still have their original file name.
+- **The document date**, for documents that have no date yet.
+- **Custom property values**, for properties that are still empty.
+
+Enrichment only fills gaps. It never changes a name you set, a date or property value that is already set, and it never removes tags. Each feature is turned on separately, see [Configuration reference](#configuration-reference).
 
 ## Prerequisites
 
-Auto tagging relies on two things:
+Enrichment relies on two things:
 
 1. **A configured LLM provider.** Papra supports many providers out of the box, plus any OpenAI-compatible API. See the [LLM configuration guide](/guides/llm-configuration) for details.
-2. **Content extraction.** Tags are derived from the document's extracted text, so the document must go through [content extraction](/guides/content-extraction) first.
+2. **Content extraction.** Enrichment works on the document's extracted text, so the document must go through [content extraction](/guides/content-extraction) first. Running enrichment does not run OCR again.
 
-## Enabling auto tagging (server)
+## Quick start
 
-Auto tagging is gated by two server-side switches: the global AI switch and the auto tagging switch. Both must be enabled (the auto tagging switch is enabled by default).
-
-Example configuration using a local Ollama instance:
+Enable AI, then turn on each feature you want:
 
 ```bash
 AI_IS_ENABLED=true
 AI_DEFAULT_MODEL=ollama://qwen3:8b
 AUTO_TAGGING_ENABLED=true
+AI_ENRICHMENT_TITLES_ENABLED=true
+AI_ENRICHMENT_DATES_ENABLED=true
+AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED=true
 ```
 
-### Server options
+Tags also need to be turned on for each organization, in its settings (see [Tags](#tags)). After content extraction, Papra runs enrichment on the document with every feature that is enabled.
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `AI_IS_ENABLED` | `false` | Master switch for all AI features. Must be `true`. |
-| `AUTO_TAGGING_ENABLED` | `true` | Whether organizations are allowed to use auto tagging. |
-| `AUTO_TAGGING_MODEL` | falls back to `AI_DEFAULT_MODEL` | The model used for auto tagging, in `<adapter>://<model>` form. |
-| `AI_ENRICHMENT_MODEL` | falls back to the auto tagging model | The model used for the shared document enrichment request, in `<adapter>://<model>` form. |
-| `AI_ENRICHMENT_TITLES_ENABLED` | `false` | Whether AI gives a descriptive name to documents with meaningless names, like `SCAN_0001.pdf`, using their content. Only documents the user has not renamed are renamed, and the file extension is kept. It shares the enrichment request with auto tagging. |
-| `AI_ENRICHMENT_DATES_ENABLED` | `false` | Whether AI fills in the date of documents that have no date yet, using their content. Dates set by a user are never replaced. It shares the enrichment request with auto tagging. |
-| `AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED` | `false` | Whether AI fills in the empty custom property values of documents, using their content and your organization's property definitions. Text, number, date, yes/no, select and multi select properties are supported, relation properties are not. A property that already has a value is never changed. It shares the enrichment request with auto tagging. |
-| `AI_DECISION_MODEL` | unset | Optional TypeSafe Jev decision model, as a plain model name like `jev-latest`. It answers closed questions with a probability and sits beside your language model, never replacing it. Decisions are off while this is unset. Requires `TYPESAFE_API_KEY`. **Turning this on sends document text to TypeSafe**, a third party, in addition to your language model provider. |
-| `TYPESAFE_API_KEY` | unset | API key for TypeSafe. Decisions need both this and `AI_DECISION_MODEL`. |
-| `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` | Base URL of the TypeSafe API. |
-| `AUTO_TAGGING_DEFAULT_MAX_TAGS` | `5` | Default maximum number of tags per document. Can be overridden per organization. |
-| `AUTO_TAGGING_INSTRUCTIONS` | none | Optional extra instructions added to the auto tagging prompt, for example the language or naming style to use for tags. |
+## Features
 
-Once enabled on the server, organizations can turn auto tagging on in their settings.
+### Tags
 
-## Configuring auto tagging (organization)
+Tags are enabled on the server with `AUTO_TAGGING_ENABLED`, which is `true` by default. Each organization then turns auto tagging on in its **Auto tagging** settings, where it is off by default. In the same section, an organization can:
 
-In your organization settings, under the **Auto tagging** section, you can configure:
-
-- **Enable auto tagging**: Enable or disable auto tagging for this organization.
-- **Create new tags**: Allow or disallow creating new tags when none of the existing tags are relevant.
-- **Max number of tags**: Limit how many tags can be applied to each document (default `5`). The LLM may return fewer.
+- **Create new tags**: allow the model to suggest tags that do not exist yet. When this is off, the model can only pick existing tags. If it is also off and the organization has no tags, auto tagging does nothing.
+- **Max number of tags**: limit how many tags one enrichment adds to a document (default `5`). The model may return fewer.
 
 ![organization settings screenshot](../../../assets/organization-auto-tagging-settings.png)
 
-Once enabled, every time a document is added to Papra its extracted content is sent to the LLM for analysis, and the most relevant tags are applied automatically.
+A suggestion that matches an existing tag is applied to that tag instead of creating a new one. Matching ignores case, accents, spaces, hyphens and underscores.
+
+Set `AUTO_TAGGING_INSTRUCTIONS` to add instructions to the tagging prompt, for example the language or naming style to use for tags. The instructions are written by the instance operator and are trusted.
 
 :::tip
 Tag descriptions matter. The LLM uses each tag's name **and** description to decide what is relevant, so adding clear descriptions to your tags significantly improves the quality of the suggestions.
 :::
 
+### Titles
+
+When `AI_ENRICHMENT_TITLES_ENABLED` is `true`, Papra asks the model for a descriptive title for documents that still have their original file name, such as `SCAN_0001.pdf`.
+
+- A document you renamed is never touched.
+- The file extension is kept. The title is limited to 150 characters.
+- The model may leave the name unchanged, when the file name is already clear or the content gives too little to go on.
+
+### Dates
+
+When `AI_ENRICHMENT_DATES_ENABLED` is `true`, Papra fills in the date of documents that have no date yet.
+
+- A date you set, or one already set, is never replaced.
+- The model gives the issue date, the date the document was written, issued or signed, not a due date, payment deadline or validity date.
+- Dates after today (UTC) and before 1900-01-01 are ignored. See [Limits](#limits) for how the date is stored.
+
+### Custom properties
+
+When `AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED` is `true`, Papra fills in the empty custom property values of a document.
+
+- Text, number, date, yes/no, select and multi select properties are filled.
+- Relation properties (to users or documents) are not filled.
+- A property that already has a value is never changed.
+- Select and multi select properties with no options are skipped.
+- The model sees each property's name, description, type and options. Property descriptions improve results, so write clear ones, saying what the value is and how it appears in a document.
+- Date properties accept any calendar date, including future dates, unlike the document date.
+
+## Running it manually
+
+Enrichment runs automatically after content extraction when AI is enabled. You can also run it again on a document from the document page with the **Run AI** button. It runs every enrichment feature that is enabled, and only fills the gaps, so running it again is safe.
+
+The button only shows when AI is enabled and at least one enrichment feature is on. Auto tagging counts, and it is on by default. Papra shows a confirmation when the job is scheduled. The results are not shown right away, so you may need to reload the page to see them.
+
+The same action is available through the API:
+
+```
+POST /api/organizations/:organizationId/documents/:documentId/enrich
+```
+
+The body is optional. To run only some features, pass `capabilities`, using any of these names: `auto-tagging`, `title`, `date`, `custom-properties`.
+
+```json
+{ "capabilities": ["title", "date"] }
+```
+
+The response is `202` with a `taskId`. Requesting a feature that is disabled returns an error. The request needs the `documents:update` permission when made with an API key.
+
+## Configuration reference
+
+This is the list of settings for AI document enrichment. The [self-hosting configuration](/self-hosting/configuration) page is generated from the server's configuration definitions, so it lists these settings too.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `AI_IS_ENABLED` | `false` | Master switch for all AI features. Must be `true` for any enrichment to run. |
+| `AI_DEFAULT_MODEL` | unset | Default model for AI features, in `<adapter>://<model>` form. See the [LLM configuration guide](/guides/llm-configuration). |
+| `AUTO_TAGGING_ENABLED` | `true` | Whether auto tagging can be used on this instance. Organizations also need to enable it in their settings. |
+| `AUTO_TAGGING_MODEL` | falls back to `AI_DEFAULT_MODEL` | The model used for auto tagging, in `<adapter>://<model>` form. |
+| `AUTO_TAGGING_DEFAULT_MAX_TAGS` | `5` | Default maximum number of tags added per document. Can be overridden per organization. |
+| `AUTO_TAGGING_INSTRUCTIONS` | none | Optional extra instructions added to the auto tagging prompt, for example the language or naming style to use for tags. |
+| `AI_ENRICHMENT_MODEL` | falls back to the auto tagging model | The model used for the shared document enrichment request, in `<adapter>://<model>` form. |
+| `AI_ENRICHMENT_TITLES_ENABLED` | `false` | Whether AI can give a descriptive name to documents the user has not renamed. |
+| `AI_ENRICHMENT_DATES_ENABLED` | `false` | Whether AI can fill in the date of documents that have no date yet. |
+| `AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED` | `false` | Whether AI can fill in empty custom property values of documents. |
+| `AI_DECISION_MODEL` | unset | Optional TypeSafe Jev decision model, as a plain model name like `jev-latest`. Requires `TYPESAFE_API_KEY`. Turning it on sends document text to TypeSafe. See [Decision model](#decision-model-optional). |
+| `TYPESAFE_API_KEY` | unset | API key for TypeSafe. Decisions need both this and `AI_DECISION_MODEL`. |
+| `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` | Base URL of the TypeSafe API. |
+
 ## Decision model (optional)
 
-You can set `AI_DECISION_MODEL` and `TYPESAFE_API_KEY` to use a [TypeSafe](https://typesafe.ai) Jev decision model. Setting both is the only switch, it is off otherwise.
+You can set `AI_DECISION_MODEL` and `TYPESAFE_API_KEY` to use a [TypeSafe](https://typesafe.ai) Jev decision model. Decisions are off unless both are set, and they also need `AI_IS_ENABLED=true`.
 
-When enabled, Papra first asks it closed yes/no questions: is the filename already clear, which existing tags are relevant (only when **Create new tags** is disabled, up to 100 tags), and the value of boolean and single select custom properties. Only clear answers are used, everything else is still handled by your LLM, and the LLM is not called at all when nothing is left for it. If the decision model is unreachable, slow or fails, your LLM handles everything as if it was not configured.
+The decision model answers closed questions only, with a probability:
+
+- whether the file name is already clear (for titles),
+- which existing tags are relevant, only when **Create new tags** is disabled and the organization has up to 100 tags,
+- whether boolean properties are true, and which option a select property has.
+
+It cannot write text, so titles, dates, numbers, text values and multi select values are always left to your language model. An answer is only used when it is clear, meaning a probability of at least 0.9 for yes or the chosen option, or at most 0.1 for no. Everything else is handled by your language model, which is not called at all when nothing is left for it.
+
+If the decision model is unreachable, slow or fails, your language model handles everything as if it was not configured. Each decision call times out after 30 seconds.
 
 :::caution
-The document name and up to 10,000 characters of its text (from the start and end of long documents) are sent to TypeSafe for each enrichment. TypeSafe lists Jev at $0.042 per million input tokens, with output tokens free. Its savings against your language model have not been measured.
+Turning on decisions sends the document name, up to 10,000 characters of its text (from the start and end of long documents), and the questions, which include your tag names and descriptions and your custom property names, descriptions and options, to TypeSafe, a third party, for each enrichment. This is in addition to what is sent to your language model provider.
 :::
+
+TypeSafe lists Jev at $0.042 per million input tokens, with output tokens free (read from docs.typesafe.ai/models on 2026-11-02). Savings against your language model have not been measured, and this integration has not yet been verified against the real TypeSafe API.
+
+## Limits
+
+- **Content length.** The text sent to the model is capped at 24,000 characters. When a document is longer, the start and end are kept and the middle is cut, so the middle of a long document is not seen by the model.
+- **Invalid values.** When the model returns an invalid value for a field, that field is left empty. The other fields are still applied.
+- **Invalid response.** When the model's reply is not valid JSON, the job fails. It is not retried automatically, so use **Run AI** to try again.
+- **Activity and webhooks.** Custom property changes made by AI do not appear in the document's activity history and do not send webhooks, the same as manual property edits. Title and date changes are recorded as document updates without a user.
+- **Dates.** AI dates are stored at 12:00 UTC, so the same calendar day shows for users between UTC-11 and UTC+11. In UTC+12 to UTC+14, a date shows as the following day.
 
 ## Troubleshooting
 
-If auto tagging is not working as expected:
+If enrichment is not working as expected:
 
-- Check the server logs for errors related to the LLM provider or the auto tagging process.
-- Ensure the LLM provider is correctly configured and reachable from the Papra server (see [LLM configuration](/guides/llm-configuration)).
-- Confirm both `AI_IS_ENABLED` and `AUTO_TAGGING_ENABLED` are set, and that auto tagging is enabled in the organization settings.
-- Make sure the document's content was extracted — with no extracted text, the LLM has nothing to tag.
+- Confirm `AI_IS_ENABLED` is `true`, and that the feature you expect is enabled: its `AUTO_TAGGING_ENABLED` or `AI_ENRICHMENT_*` switch, and for tags, auto tagging in the organization settings.
+- If enrichment is enabled but nothing happens, check the server logs. The enrichment logs show when a feature is skipped, such as `No enrichment capabilities are enabled for this organization or instance. Skipping enrichment.`, and `Document enrichment completed.` when it runs.
+- Check the server logs for errors related to the LLM provider or the enrichment process, and ensure the provider is correctly configured and reachable from the Papra server (see [LLM configuration](/guides/llm-configuration)).
+- Make sure the document's content was extracted. Without extracted text there is nothing to enrich, and **Run AI** returns an error.
+- If the job failed because the model's reply was not valid JSON, run **Run AI** again. It is not retried automatically.
 - If no new tags ever appear, check that **Create new tags** is enabled and that the max tags limit is not too low.
+- Reload the document page after running enrichment, as the results may not show until then.
+
+Startup logs about the decision model:
+
+- `AI decisions are disabled: both AI_DECISION_MODEL and TYPESAFE_API_KEY must be set` (warning): only one of the two is set. Set both, or unset the one you set.
+- `AI decisions are configured, document text will be sent to TypeSafe` (info): both are set. This is expected when you enabled decisions. If `AI_IS_ENABLED` is not `true`, decisions stay off even though this line is logged.
+- `TypeSafe rejected the API key (401), check TYPESAFE_API_KEY` (error): the key is wrong or missing.
+- `The decision model failed, falling back to the language model.` (warning): a decision call failed or timed out. Enrichment carries on with the language model.

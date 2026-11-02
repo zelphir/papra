@@ -74,7 +74,7 @@ export const sidebar = [
         slug: 'guides/llm-configuration',
       },
       {
-        label: 'Document Auto Tagging',
+        label: 'AI Document Enrichment',
         slug: 'guides/auto-tagging',
       },
     ],
