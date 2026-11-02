@@ -209,6 +209,41 @@ describe('scheduling document enrichment', () => {
   );
 });
 
+describe('scheduling document enrichment without explicit capabilities', () => {
+  test('schedules the job without capabilities, so every enabled capability is decided by the pipeline, when auto-tagging is disabled', async () => {
+    const deps = await createTestDeps(seed, { isAutoTaggingEnabled: false });
+    const scheduleJob = vi.fn().mockResolvedValue({ jobId: 'job_1' });
+    const scheduleDocumentEnrichment = buildScheduleDocumentEnrichment({
+      config: deps.config,
+      documentsRepository: deps.documentsRepository,
+      resolveOrganizationSettings: createTestResolveOrganizationSettings(),
+      taskServices: { scheduleJob },
+    });
+
+    await expect(scheduleDocumentEnrichment(documentIds)).resolves.toEqual({ taskId: 'job_1' });
+    expect(scheduleJob).toHaveBeenCalledWith({
+      taskName: 'enrich-document',
+      data: { documentId: 'doc_1', organizationId: 'org_1', capabilities: undefined },
+    });
+  });
+
+  test('is rejected when AI is disabled for the instance', async () => {
+    const deps = await createTestDeps(seed, { isAiEnabled: false });
+    const scheduleJob = vi.fn();
+    const scheduleDocumentEnrichment = buildScheduleDocumentEnrichment({
+      config: deps.config,
+      documentsRepository: deps.documentsRepository,
+      resolveOrganizationSettings: createTestResolveOrganizationSettings(),
+      taskServices: { scheduleJob },
+    });
+
+    await expect(scheduleDocumentEnrichment(documentIds)).rejects.toEqual(
+      createDocumentEnrichmentDisabledError(),
+    );
+    expect(scheduleJob).not.toHaveBeenCalled();
+  });
+});
+
 describe('document enrichment', () => {
   test('when no capabilities are requested, every available registered capability is applied in a single AI call', async () => {
     const deps = await createTestDeps(seed);

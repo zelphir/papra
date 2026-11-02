@@ -36,7 +36,7 @@ export function buildScheduleDocumentEnrichment({
   }: {
     documentId: string;
     organizationId: string;
-    capabilities: DocumentEnrichmentCapability[];
+    capabilities?: DocumentEnrichmentCapability[];
   }) => {
     if (!config.ai.isEnabled) {
       throw createDocumentEnrichmentDisabledError();
@@ -52,22 +52,22 @@ export function buildScheduleDocumentEnrichment({
     }
 
     if (
-      capabilities.includes('auto-tagging') &&
+      capabilities?.includes('auto-tagging') &&
       (!config.autoTagging.isEnabled || !organizationSettings.ai.autoTagging.isEnabled)
     ) {
       throw createDocumentEnrichmentDisabledError();
     }
 
-    if (capabilities.includes('title') && !config.documentEnrichment.titles.isEnabled) {
+    if (capabilities?.includes('title') && !config.documentEnrichment.titles.isEnabled) {
       throw createDocumentEnrichmentDisabledError();
     }
 
-    if (capabilities.includes('date') && !config.documentEnrichment.dates.isEnabled) {
+    if (capabilities?.includes('date') && !config.documentEnrichment.dates.isEnabled) {
       throw createDocumentEnrichmentDisabledError();
     }
 
     if (
-      capabilities.includes('custom-properties') &&
+      capabilities?.includes('custom-properties') &&
       !config.documentEnrichment.customProperties.isEnabled
     ) {
       throw createDocumentEnrichmentDisabledError();

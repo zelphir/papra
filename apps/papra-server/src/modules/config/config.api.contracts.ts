@@ -40,6 +40,9 @@ export const publicConfigSchema = v.object({
   autoTagging: v.object({
     isEnabled: v.boolean(),
   }),
+  documentEnrichment: v.object({
+    isEnabled: v.boolean(),
+  }),
 });
 
 export type PublicConfig = v.InferOutput<typeof publicConfigSchema>;

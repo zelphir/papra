@@ -420,6 +420,9 @@ export const translations = {
   'documents.actions.download.error': 'Failed to download document',
   'documents.actions.restore': 'Restore',
   'documents.actions.delete': 'Delete',
+  'documents.enrich.action': 'Run AI',
+  'documents.enrich.started': 'AI enrichment started',
+  'documents.enrich.started.description': 'Results will appear shortly.',
   'documents.actions.edit': 'Edit',
   'documents.actions.cancel': 'Cancel',
   'documents.actions.save': 'Save',
@@ -1109,6 +1112,9 @@ export const translations = {
   'api-errors.api.timeout': 'The request took too long and timed out. Please try again.',
   'api-errors.document.already_exists': 'The document already exists',
   'api-errors.document.size_too_large': 'The file size is too large',
+  'api-errors.document_enrichment.disabled': 'AI document enrichment is disabled on this server.',
+  'api-errors.document_enrichment.content_required':
+    'This document has no extracted text to analyze.',
   'api-errors.intake-emails.already_exists': 'An intake email with this address already exists.',
   'api-errors.intake_email.limit_reached':
     'The maximum number of intake emails for this organization has been reached. Please upgrade your plan to create more intake emails.',

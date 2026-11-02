@@ -20,6 +20,7 @@ import { fetchCustomPropertyDefinitions } from '@/modules/custom-properties/cust
 import { useShareDocumentDialog } from '@/modules/document-share-links/components/share-document-dialog.component';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { useI18n } from '@/modules/i18n/i18n.provider';
+import { useI18nApiErrors } from '@/modules/shared/http/composables/i18n-api-errors';
 import { debounce } from '@/modules/shared/utils/timing';
 import { DocumentTagsList } from '@/modules/tags/components/tag-list.component';
 import { TagLink } from '@/modules/tags/components/tag.component';
@@ -56,7 +57,12 @@ import {
   useDownloadDocument,
   useRestoreDocument,
 } from '../documents.composables';
-import { fetchDocument, fetchDocumentActivities, updateDocument } from '../documents.services';
+import {
+  enrichDocument,
+  fetchDocument,
+  fetchDocumentActivities,
+  updateDocument,
+} from '../documents.services';
 
 type KeyValueItem = {
   label: string | JSX.Element;
@@ -290,6 +296,25 @@ export const DocumentPage: Component = () => {
   const { config } = useConfig();
   const { openRenameDialog } = useRenameDocumentDialog();
   const { openShareDialog } = useShareDocumentDialog();
+  const { getErrorMessage } = useI18nApiErrors();
+
+  const enrichDocumentMutation = useMutation(() => ({
+    mutationFn: async () =>
+      enrichDocument({
+        documentId: params.documentId,
+        organizationId: params.organizationId,
+      }),
+    onSuccess: () => {
+      createToast({
+        type: 'success',
+        message: t('documents.enrich.started'),
+        description: t('documents.enrich.started.description'),
+      });
+    },
+    onError: (error) => {
+      createToast({ type: 'error', message: getErrorMessage({ error }) });
+    },
+  }));
 
   const getInitialTab = (): Tab => {
     const tab = searchParams.tab;
@@ -422,6 +447,18 @@ export const DocumentPage: Component = () => {
                       <div class="i-tabler-share size-4 mr-2" />
                       {t('document-share-links.share-action')}
                     </Button>
+
+                    <Show when={config.documentEnrichment.isEnabled && !getDocument().isDeleted}>
+                      <Button
+                        onClick={() => enrichDocumentMutation.mutate()}
+                        isLoading={enrichDocumentMutation.isPending}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <div class="i-tabler-sparkles size-4 mr-2" />
+                        {t('documents.enrich.action')}
+                      </Button>
+                    </Show>
 
                     {getDocument().isDeleted ? (
                       <Button

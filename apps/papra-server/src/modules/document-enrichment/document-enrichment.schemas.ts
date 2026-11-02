@@ -10,5 +10,5 @@ export const documentEnrichmentCapabilitySchema = v.picklist([
 export type DocumentEnrichmentCapability = v.InferOutput<typeof documentEnrichmentCapabilitySchema>;
 
 export const enrichDocumentBodySchema = v.strictObject({
-  capabilities: v.pipe(v.array(documentEnrichmentCapabilitySchema), v.minLength(1)),
+  capabilities: v.optional(v.pipe(v.array(documentEnrichmentCapabilitySchema), v.minLength(1))),
 });
