@@ -4,6 +4,7 @@ import { createDocumentNotFoundError } from '../documents/documents.errors';
 import type { DocumentsRepository } from '../documents/documents.repository';
 import type { ResolveOrganizationSettingsUsecase } from '../organizations/organization-settings/organization-settings.usecases';
 import { createLogger } from '../shared/logger/logger';
+import type { OrganizationsRepository } from '../organizations/organizations.repository';
 import type { CustomPropertiesRepository } from '../custom-properties/custom-properties.repository';
 import type { TagsRepository } from '../tags/tags.repository';
 import type { Config } from '../config/config.types';
@@ -93,6 +94,7 @@ export function buildEnrichDocument({
   documentsRepository,
   tagsRepository,
   customPropertiesRepository,
+  organizationsRepository,
   resolveOrganizationSettings,
   aiServices,
   logger = createLogger({ namespace: 'documentEnrichment' }),
@@ -110,6 +112,7 @@ export function buildEnrichDocument({
     CustomPropertiesRepository,
     'getOrganizationPropertyDefinitions' | 'getDocumentCustomPropertyValues'
   >;
+  organizationsRepository: Pick<OrganizationsRepository, 'getOrganizationMembers'>;
   resolveOrganizationSettings: ResolveOrganizationSettingsUsecase;
   aiServices: AiServices;
   logger?: Logger;
@@ -149,11 +152,13 @@ export function buildEnrichDocument({
           ? Promise.all([
               customPropertiesRepository.getOrganizationPropertyDefinitions({ organizationId }),
               customPropertiesRepository.getDocumentCustomPropertyValues({ documentId }),
-            ]).then(([{ propertyDefinitions }, { values }]) => ({
+              organizationsRepository.getOrganizationMembers({ organizationId }),
+            ]).then(([{ propertyDefinitions }, { values }, { members }]) => ({
               definitions: propertyDefinitions,
               values,
+              members,
             }))
-          : { definitions: [], values: [] },
+          : { definitions: [], values: [], members: [] },
       ]);
 
     if (!document || document.isDeleted) {

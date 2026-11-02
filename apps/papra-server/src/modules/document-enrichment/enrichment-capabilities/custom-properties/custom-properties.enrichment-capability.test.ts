@@ -86,6 +86,7 @@ async function createTestDeps({
   response = fullResponse as Record<string, unknown>,
   withOthers = false,
   customPropertyDefinitions = properties,
+  members = [] as { id: string; name: string | null; email: string }[],
   documentCustomPropertyValues = [] as {
     id: string;
     documentId: string;
@@ -94,8 +95,17 @@ async function createTestDeps({
   }[],
 } = {}) {
   const { db } = await createInMemoryDatabase({
-    users: [{ id: 'user_1', email: 'user@example.com' }],
+    users: [{ id: 'user_1', email: 'user@example.com' }, ...members],
     organizations: [{ id: 'org_1', name: 'Org 1' }],
+    ...(members.length > 0
+      ? {
+          organizationMembers: members.map(({ id }) => ({
+            organizationId: 'org_1',
+            userId: id,
+            role: 'member' as const,
+          })),
+        }
+      : {}),
     documents: [
       {
         id: 'doc_1',
@@ -142,6 +152,7 @@ async function createTestDeps({
   const documentsRepository = createDocumentsRepository({ db });
   const tagsRepository = createTagsRepository({ db });
   const customPropertiesRepository = createCustomPropertiesRepository({ db });
+  const organizationsRepository = createOrganizationsRepository({ db });
   const eventServices = createTestEventServices();
   const { logger, getLogs } = createTestLogger();
   const generateStructuredData = vi
@@ -154,7 +165,7 @@ async function createTestDeps({
     documentsRepository,
     customPropertiesRepository,
     customPropertiesOptionsRepository: createCustomPropertiesOptionsRepository({ db }),
-    organizationsRepository: createOrganizationsRepository({ db }),
+    organizationsRepository,
     logger,
   });
 
@@ -164,6 +175,7 @@ async function createTestDeps({
     generateStructuredData,
     customPropertiesRepository,
     documentsRepository,
+    organizationsRepository,
     getLogs,
     getValues: async () => {
       const { values } = await customPropertiesRepository.getDocumentCustomPropertyValues({
@@ -176,6 +188,7 @@ async function createTestDeps({
       documentsRepository,
       tagsRepository,
       customPropertiesRepository,
+      organizationsRepository,
       logger,
       resolveOrganizationSettings,
       aiServices: { generateStructuredData } as unknown as AiServices,
@@ -266,6 +279,7 @@ describe('custom properties enrichment capability', () => {
 
     const schema = getCustomPropertiesResponseSchema({
       properties: definitions.filter(({ type }) => !type.endsWith('relation')),
+      members: [],
     });
     const jsonSchema = toStandardJsonSchema(schema)['~standard'].jsonSchema.input({
       target: 'draft-07',
@@ -568,5 +582,206 @@ describe('custom properties enrichment capability', () => {
     ).rejects.toMatchObject({
       code: createDocumentEnrichmentDisabledError().code,
     });
+  });
+});
+
+describe('custom properties enrichment capability, user properties', () => {
+  const userProperties = [
+    definition('cpd_user', 'persona', 'user_relation'),
+    definition('cpd_doc', 'related', 'document_relation'),
+    definition('cpd_text', 'reference', 'text'),
+  ];
+  const frank = { id: 'usr_frank', name: 'Frank', email: 'frank@email.com' };
+  const alice = { id: 'usr_alice', name: 'Alice Martin', email: 'alice@secret-domain.org' };
+  const members = [frank, alice];
+
+  const createUserTestDeps = async (args: Parameters<typeof createTestDeps>[0] = {}) =>
+    createTestDeps({ customPropertyDefinitions: userProperties, members, ...args });
+
+  const getUserIds = async (deps: Awaited<ReturnType<typeof createTestDeps>>) =>
+    (await deps.getValues())
+      .filter(({ value }) => value.propertyDefinitionId === 'cpd_user')
+      .map(({ value }) => value.userId!)
+      .sort((a, b) => a.localeCompare(b));
+
+  test('a member mentioned in the document, even partially, is written as that user', async () => {
+    const deps = await createUserTestDeps({
+      response: { customProperties: { persona: ['Frank (frank)'], reference: null } },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await getUserIds(deps)).toEqual(['usr_frank']);
+  });
+
+  test('several members mentioned in the document are all written', async () => {
+    const deps = await createUserTestDeps({
+      response: {
+        customProperties: {
+          persona: ['Frank (frank)', 'Alice Martin (alice)'],
+          reference: null,
+        },
+      },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await getUserIds(deps)).toEqual(['usr_alice', 'usr_frank']);
+  });
+
+  test('a member without a name is listed by the part of their email before the at sign', async () => {
+    const deps = await createUserTestDeps({
+      members: [{ id: 'usr_bob', name: null, email: 'bob@email.com' }],
+      response: { customProperties: { persona: ['bob'], reference: null } },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await getUserIds(deps)).toEqual(['usr_bob']);
+  });
+
+  test('a label outside the list leaves the property empty and does not affect the other fields', async () => {
+    const deps = await createUserTestDeps({
+      response: { customProperties: { persona: ['Mallory (mallory)'], reference: 'INV-42' } },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await getUserIds(deps)).toEqual([]);
+    expect((await deps.getValues()).map(({ value }) => value.propertyDefinitionId)).toEqual([
+      'cpd_text',
+    ]);
+  });
+
+  test('null for a user property writes nothing', async () => {
+    const deps = await createUserTestDeps({
+      response: { customProperties: { persona: null, reference: null } },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await deps.getValues()).toEqual([]);
+  });
+
+  test('a user property that already has a value is never changed nor asked to the model', async () => {
+    const deps = await createUserTestDeps();
+    await deps.customPropertiesRepository.setDocumentCustomPropertyValue({
+      documentId: 'doc_1',
+      propertyDefinitionId: 'cpd_user',
+      values: [{ userId: 'usr_alice' }],
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    const [request] = deps.generateStructuredData.mock.calls[0]!;
+    expect(request.systemPrompt).not.toContain('"key":"persona"');
+    expect(await getUserIds(deps)).toEqual(['usr_alice']);
+  });
+
+  test('an organization without members has no eligible user property, and document relations are never filled', async () => {
+    const deps = await createUserTestDeps({ members: [] });
+
+    await deps.enrichDocument(documentIds);
+
+    const [request] = deps.generateStructuredData.mock.calls[0]!;
+    expect(request.systemPrompt).not.toContain('"key":"persona"');
+    expect(request.systemPrompt).not.toContain('"key":"related"');
+    expect(request.systemPrompt).not.toContain('organization members');
+  });
+
+  test('members sharing the same label are left out of the list', async () => {
+    const deps = await createUserTestDeps({
+      members: [
+        { id: 'usr_a', name: 'Sam', email: 'sam@one.com' },
+        { id: 'usr_b', name: 'Sam', email: 'sam@two.com' },
+        alice,
+      ],
+      response: {
+        customProperties: { persona: ['Alice Martin (alice)'], reference: null },
+      },
+    });
+
+    await deps.enrichDocument(documentIds);
+
+    const [request] = deps.generateStructuredData.mock.calls[0]!;
+    expect(request.systemPrompt).not.toContain('Sam (sam)');
+    expect(await getUserIds(deps)).toEqual(['usr_alice']);
+  });
+
+  test('only labels without any email domain or user id are sent to the model', async () => {
+    const deps = await createUserTestDeps();
+
+    await deps.enrichDocument(documentIds);
+
+    const [request] = deps.generateStructuredData.mock.calls[0]!;
+    const sent = JSON.stringify([
+      request.systemPrompt,
+      toStandardJsonSchema(request.schema!)['~standard'].jsonSchema.input({ target: 'draft-07' }),
+    ]);
+    expect(sent).toContain('Frank (frank)');
+    expect(sent).toContain('Alice Martin (alice)');
+    for (const secret of ['email.com', 'secret-domain.org', '@', 'usr_frank', 'usr_alice']) {
+      expect(request.systemPrompt).not.toContain(secret);
+    }
+    expect(sent).not.toContain('email.com');
+    expect(sent).not.toContain('secret-domain.org');
+    expect(sent).not.toContain('usr_');
+  });
+
+  test('the user property schema keeps its label enum for strict JSON schema providers', async () => {
+    const deps = await createUserTestDeps();
+    await deps.enrichDocument(documentIds);
+    const [{ schema }] = deps.generateStructuredData.mock.calls[0]!;
+
+    const jsonSchema = toStandardJsonSchema(schema!)['~standard'].jsonSchema.input({
+      target: 'draft-07',
+    });
+
+    expect(jsonSchema).toMatchObject({
+      properties: {
+        customProperties: {
+          properties: {
+            persona: {
+              anyOf: [
+                {
+                  type: 'array',
+                  items: {
+                    enum: expect.arrayContaining(['Frank (frank)', 'Alice Martin (alice)']),
+                  },
+                },
+                { type: 'null' },
+              ],
+            },
+          },
+        },
+      },
+    });
+  });
+
+  test('without the switch on, members are not queried', async () => {
+    const deps = await createUserTestDeps({ isEnabled: false });
+    const membersQuery = vi.spyOn(deps.organizationsRepository, 'getOrganizationMembers');
+
+    await deps.enrichDocument(documentIds);
+
+    expect(membersQuery).not.toHaveBeenCalled();
+  });
+
+  test('a member removed while the AI was running skips that property and the others are still written', async () => {
+    const deps = await createUserTestDeps({
+      response: { customProperties: { persona: ['Frank (frank)'], reference: 'INV-42' } },
+    });
+    const getOrganizationMembers = deps.organizationsRepository.getOrganizationMembers;
+    // Members are listed for the context first, then the member is gone when the value is validated
+    vi.spyOn(deps.organizationsRepository, 'getOrganizationMembers')
+      .mockImplementationOnce(getOrganizationMembers)
+      .mockResolvedValue({ members: [] });
+
+    await deps.enrichDocument(documentIds);
+
+    expect(await getUserIds(deps)).toEqual([]);
+    expect((await deps.getValues()).map(({ value }) => value.propertyDefinitionId)).toEqual([
+      'cpd_text',
+    ]);
   });
 });

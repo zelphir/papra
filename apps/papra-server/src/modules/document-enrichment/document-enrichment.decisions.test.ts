@@ -149,6 +149,7 @@ async function createTestDeps({
     documentsRepository,
     tagsRepository,
     customPropertiesRepository,
+    organizationsRepository: createOrganizationsRepository({ db }),
     resolveOrganizationSettings,
     logger,
     aiServices: {

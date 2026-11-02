@@ -11,6 +11,7 @@ import { createLogger } from '../../../shared/logger/logger';
 import { setDocumentCustomPropertyValue } from '../../../custom-properties/custom-properties.usecases';
 import {
   createCustomPropertyDefinitionNotFoundError,
+  createCustomPropertyUserNotFoundError,
   createCustomPropertyValueInvalidError,
 } from '../../../custom-properties/custom-properties.errors';
 import { createCustomPropertySelectOptionNotFoundError } from '../../../custom-properties/options/custom-properties-options.errors';
@@ -26,6 +27,8 @@ import {
 const INVALID_VALUE_ERROR_CODES = [
   createCustomPropertyValueInvalidError().code,
   createCustomPropertySelectOptionNotFoundError().code,
+  // The member left the organization while the AI was running
+  createCustomPropertyUserNotFoundError().code,
   // The definition was deleted while the AI was running
   createCustomPropertyDefinitionNotFoundError().code,
 ];
@@ -60,11 +63,15 @@ export const buildCustomPropertiesEnrichmentCapability = defineDocumentEnrichmen
       buildSystemPromptFragments: ({ customProperties }) => ({
         fragment: buildCustomPropertiesPromptFragment({
           properties: getEligibleProperties(customProperties),
+          members: customProperties.members,
         }),
       }),
 
       getResponseSchema: ({ customProperties }) =>
-        getCustomPropertiesResponseSchema({ properties: getEligibleProperties(customProperties) }),
+        getCustomPropertiesResponseSchema({
+          properties: getEligibleProperties(customProperties),
+          members: customProperties.members,
+        }),
 
       decisions: {
         getQuestions: ({ customProperties }) =>
@@ -88,12 +95,14 @@ export const buildCustomPropertiesEnrichmentCapability = defineDocumentEnrichmen
         const properties = getEligibleProperties({
           definitions: customProperties.definitions,
           values,
+          members: customProperties.members,
         });
 
         for (const property of properties) {
           const value = toCustomPropertyValue({
             property,
             value: response.customProperties?.[property.key],
+            members: customProperties.members,
           });
 
           if (value === undefined) {

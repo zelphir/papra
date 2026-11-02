@@ -8,6 +8,7 @@ import type { AutoTaggingResponse } from '../auto-tagging/auto-tagging.models';
 import { buildApplyAutoTaggingActions } from '../auto-tagging/auto-tagging.usecases';
 import { overrideConfig } from '../config/config.test-utils';
 import { createCustomPropertiesRepository } from '../custom-properties/custom-properties.repository';
+import { createOrganizationsRepository } from '../organizations/organizations.repository';
 import { createDocumentNotFoundError } from '../documents/documents.errors';
 import { createDocumentsRepository } from '../documents/documents.repository';
 import type { ResolveOrganizationSettingsUsecase } from '../organizations/organization-settings/organization-settings.usecases';
@@ -84,6 +85,7 @@ async function createTestDeps(
     documentsRepository: createDocumentsRepository({ db }),
     tagsRepository,
     customPropertiesRepository: createCustomPropertiesRepository({ db }),
+    organizationsRepository: createOrganizationsRepository({ db }),
     logger,
     config,
     capabilityDefinitions: [

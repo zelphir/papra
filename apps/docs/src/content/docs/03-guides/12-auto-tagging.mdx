@@ -79,10 +79,11 @@ When `AI_ENRICHMENT_DATES_ENABLED` is `true`, Papra fills in the date of documen
 When `AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED` is `true`, Papra fills in the empty custom property values of a document.
 
 - Text, number, date, yes/no, select and multi select properties are filled.
-- Relation properties (to users or documents) are not filled.
+- User properties are filled when the document mentions an organization member, even partially, for example a first name only. Only members of the organization can match, and a property can hold several users.
+- Document relation properties are not filled.
 - A property that already has a value is never changed.
 - Select and multi select properties with no options are skipped.
-- The model sees each property's name, description, type and options. Property descriptions improve results, so write clear ones, saying what the value is and how it appears in a document.
+- The model sees each property's name, description, type and options. For user properties, it sees the name of each member and the part of their email before the `@`, never the email domain. Property descriptions improve results, so write clear ones, saying what the value is and how it appears in a document.
 - Date properties accept any calendar date, including future dates, unlike the document date.
 
 ## Running it manually

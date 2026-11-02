@@ -5,6 +5,7 @@ import type { GenericObjectSchema } from '../../shared/schemas/objects.schemas';
 import type { Document } from '../../documents/documents.types';
 import type { Tag } from '../../tags/tags.types';
 import type { CustomPropertiesRepository } from '../../custom-properties/custom-properties.repository';
+import type { OrganizationsRepository } from '../../organizations/organizations.repository';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
 
 // Loaded only when a selected capability lists 'custom-properties' in its documentInfoRequirements, empty otherwise
@@ -15,6 +16,8 @@ export type EnrichmentCustomProperties = {
   values: Awaited<
     ReturnType<CustomPropertiesRepository['getDocumentCustomPropertyValues']>
   >['values'];
+  // Organization members, the users a user property can point to
+  members: Awaited<ReturnType<OrganizationsRepository['getOrganizationMembers']>>['members'];
 };
 
 export type DecisionAnswer = BooleanAnswer | ChoiceAnswer;

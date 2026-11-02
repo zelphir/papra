@@ -60,6 +60,7 @@ export async function registerEnrichDocumentTask({
         documentsRepository,
         tagsRepository,
         customPropertiesRepository,
+        organizationsRepository: createOrganizationsRepository({ db }),
         logger,
         capabilityDefinitions: [
           buildTagsEnrichmentCapability({
