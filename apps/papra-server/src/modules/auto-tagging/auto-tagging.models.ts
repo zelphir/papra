@@ -21,6 +21,30 @@ function normalizeSuggestedTagName({ name }: { name: string }): string {
     .toLowerCase();
 }
 
+// Same colors as the tag creation page in the client, without white
+const AUTO_TAGGING_TAG_COLORS = [
+  '#D8FF75',
+  '#7FFF7A',
+  '#7AFFCE',
+  '#7AD7FF',
+  '#7A7FFF',
+  '#CE7AFF',
+  '#FF7AD7',
+  '#FF7A7F',
+  '#FFCE7A',
+];
+
+// Based on the name so that a tag gets the same color every time, whatever its case or separators
+export function getTagColorFromName({ name }: { name: string }): string {
+  let hash = 0;
+
+  for (const char of normalizeSuggestedTagName({ name })) {
+    hash = (hash * 31 + char.codePointAt(0)!) % 2_147_483_647;
+  }
+
+  return AUTO_TAGGING_TAG_COLORS[hash % AUTO_TAGGING_TAG_COLORS.length]!;
+}
+
 export function getTagsActions({
   autoTaggingResponse,
   existingTags,

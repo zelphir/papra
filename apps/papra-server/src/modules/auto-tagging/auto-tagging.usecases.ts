@@ -5,6 +5,7 @@ import type {
 } from '../tags/tags.usecases';
 import pLimit from 'p-limit';
 import type { AutoTaggingActions } from './auto-tagging.models';
+import { getTagColorFromName } from './auto-tagging.models';
 
 export function buildApplyAutoTaggingActions({
   createTag,
@@ -37,7 +38,7 @@ export function buildApplyAutoTaggingActions({
         limit(async () =>
           createTag({
             organizationId,
-            color: '#CCCCCC',
+            color: getTagColorFromName({ name }),
             name,
             description,
           }),

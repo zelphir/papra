@@ -1,7 +1,40 @@
 import { describe, expect, test } from 'vitest';
-import { getTagsActions } from './auto-tagging.models';
+import { TagColorRegex } from '../tags/tags.constants';
+import { getTagColorFromName, getTagsActions } from './auto-tagging.models';
 
 describe('auto-tagging.models', () => {
+  describe('getTagColorFromName', () => {
+    test('a tag name always gets the same color', () => {
+      expect(getTagColorFromName({ name: 'Invoices' })).toEqual(
+        getTagColorFromName({ name: 'Invoices' }),
+      );
+    });
+
+    test('spelling variants of a name get the same color', () => {
+      const color = getTagColorFromName({ name: 'tax return' });
+
+      expect(getTagColorFromName({ name: 'Tax-Return' })).toEqual(color);
+      expect(getTagColorFromName({ name: ' TAX_RETURN ' })).toEqual(color);
+    });
+
+    test('colors are valid tag colors, and different names do not all share one color', () => {
+      const names = [
+        'Invoices',
+        'Contracts',
+        'Housing',
+        'Taxes',
+        'Receipts',
+        'Insurance',
+        'Médical',
+        '請求書',
+      ];
+      const colors = names.map((name) => getTagColorFromName({ name }));
+
+      expect(colors.every((color) => TagColorRegex.test(color))).toEqual(true);
+      expect(new Set(colors).size).toBeGreaterThan(3);
+    });
+  });
+
   describe('getTagsActions', () => {
     describe('the structured data returned by the AI depends on the context (can create new tags, is there existing tags, etc.)', () => {
       const existingTags = [

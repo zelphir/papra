@@ -6,6 +6,7 @@ import { createTestLogger } from '../shared/logger/logger.test-utils';
 import { createTagsRepository } from '../tags/tags.repository';
 import { documentsTagsTable, tagsTable } from '../tags/tags.table';
 import { applyTagsToDocuments, createTag } from '../tags/tags.usecases';
+import { getTagColorFromName } from './auto-tagging.models';
 import { buildApplyAutoTaggingActions } from './auto-tagging.usecases';
 
 async function createTestDeps(
@@ -85,7 +86,7 @@ describe('auto-tagging usecases', () => {
       const invoiceTag = tags.find((tag) => tag.name === 'Invoice')!;
       expect(invoiceTag).toMatchObject({
         description: 'Invoices and receipts',
-        color: '#CCCCCC',
+        color: getTagColorFromName({ name: 'Invoice' }),
         organizationId: 'org_1',
       });
       const documentTags = await deps.db.select().from(documentsTagsTable);

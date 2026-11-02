@@ -1,3 +1,4 @@
+import { getTagColorFromName } from '../auto-tagging/auto-tagging.models';
 import { describe, expect, test, vi } from 'vitest';
 import * as v from 'valibot';
 import type { AiServices } from '../ai/ai.services';
@@ -572,7 +573,7 @@ describe('document enrichment', () => {
     expect(createdTags[0]).toMatchObject({
       name: 'Invoice',
       description: 'Invoices and receipts',
-      color: '#CCCCCC',
+      color: getTagColorFromName({ name: 'Invoice' }),
       organizationId: 'org_1',
     });
     expect(await deps.db.select().from(documentsTagsTable)).toEqual([
