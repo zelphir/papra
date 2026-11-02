@@ -49,6 +49,16 @@ export function getPublicConfig({
     autoTagging: {
       isEnabled: config.autoTagging.isEnabled && config.ai.isEnabled,
     },
+    documentEnrichment: {
+      isEnabled:
+        config.ai.isEnabled &&
+        [
+          config.autoTagging.isEnabled,
+          config.documentEnrichment.titles.isEnabled,
+          config.documentEnrichment.dates.isEnabled,
+          config.documentEnrichment.customProperties.isEnabled,
+        ].some(Boolean),
+    },
   };
 
   return {

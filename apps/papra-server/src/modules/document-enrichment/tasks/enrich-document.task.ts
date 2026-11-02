@@ -13,6 +13,12 @@ import type { AiServices } from '../../ai/ai.services';
 import { buildEnrichDocument } from '../document-enrichment.usecases';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
 import { buildTagsEnrichmentCapability } from '../enrichment-capabilities/tags/tags.enrichment-capability';
+import { buildTitleEnrichmentCapability } from '../enrichment-capabilities/title/title.enrichment-capability';
+import { createCustomPropertiesRepository } from '../../custom-properties/custom-properties.repository';
+import { createCustomPropertiesOptionsRepository } from '../../custom-properties/options/custom-properties-options.repository';
+import { createOrganizationsRepository } from '../../organizations/organizations.repository';
+import { buildCustomPropertiesEnrichmentCapability } from '../enrichment-capabilities/custom-properties/custom-properties.enrichment-capability';
+import { buildDateEnrichmentCapability } from '../enrichment-capabilities/date/date.enrichment-capability';
 
 export async function registerEnrichDocumentTask({
   taskServices,
@@ -27,7 +33,7 @@ export async function registerEnrichDocumentTask({
   config: Config;
   eventServices: EventServices;
 }) {
-  if (!config.ai.isEnabled || !config.autoTagging.isEnabled) {
+  if (!config.ai.isEnabled) {
     return;
   }
 
@@ -38,6 +44,7 @@ export async function registerEnrichDocumentTask({
     handler: async ({ data }) => {
       const documentsRepository = createDocumentsRepository({ db });
       const tagsRepository = createTagsRepository({ db });
+      const customPropertiesRepository = createCustomPropertiesRepository({ db });
       const organizationSettingsRepository = createOrganizationSettingsRepository({ db });
 
       // TODO: remove type cast
@@ -49,8 +56,11 @@ export async function registerEnrichDocumentTask({
 
       const logger = createLogger({ namespace: 'documentEnrichment' });
       const enrichDocument = buildEnrichDocument({
+        config,
         documentsRepository,
         tagsRepository,
+        customPropertiesRepository,
+        organizationsRepository: createOrganizationsRepository({ db }),
         logger,
         capabilityDefinitions: [
           buildTagsEnrichmentCapability({
@@ -60,6 +70,16 @@ export async function registerEnrichDocumentTask({
               applyTagsToDocuments: async (args) =>
                 applyTagsToDocuments({ ...args, tagsRepository, eventServices, logger }),
             }),
+          }),
+          buildTitleEnrichmentCapability({ config, documentsRepository, eventServices }),
+          buildDateEnrichmentCapability({ config, documentsRepository, eventServices }),
+          buildCustomPropertiesEnrichmentCapability({
+            config,
+            documentsRepository,
+            customPropertiesRepository,
+            customPropertiesOptionsRepository: createCustomPropertiesOptionsRepository({ db }),
+            organizationsRepository: createOrganizationsRepository({ db }),
+            logger,
           }),
         ],
         resolveOrganizationSettings: createResolveOrganizationSettingsUsecase({

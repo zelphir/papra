@@ -121,12 +121,90 @@ describe('config models', () => {
           autoTagging: {
             isEnabled: false,
           },
+          documentEnrichment: {
+            isEnabled: false,
+          },
         },
       });
       expect(v.parse(publicConfigSchema, JSON.parse(JSON.stringify(result.publicConfig)))).toEqual(
         result.publicConfig,
       );
     });
+
+    test.each([
+      {
+        name: 'AI disabled',
+        ai: false,
+        autoTagging: true,
+        titles: false,
+        dates: false,
+        customProperties: false,
+        expected: false,
+      },
+      {
+        name: 'AI enabled with no feature enabled',
+        ai: true,
+        autoTagging: false,
+        titles: false,
+        dates: false,
+        customProperties: false,
+        expected: false,
+      },
+      {
+        name: 'AI enabled with auto-tagging enabled',
+        ai: true,
+        autoTagging: true,
+        titles: false,
+        dates: false,
+        customProperties: false,
+        expected: true,
+      },
+      {
+        name: 'AI enabled with titles enabled',
+        ai: true,
+        autoTagging: false,
+        titles: true,
+        dates: false,
+        customProperties: false,
+        expected: true,
+      },
+      {
+        name: 'AI enabled with dates enabled',
+        ai: true,
+        autoTagging: false,
+        titles: false,
+        dates: true,
+        customProperties: false,
+        expected: true,
+      },
+      {
+        name: 'AI enabled with custom properties enabled',
+        ai: true,
+        autoTagging: false,
+        titles: false,
+        dates: false,
+        customProperties: true,
+        expected: true,
+      },
+    ])(
+      'document enrichment is publicly enabled only when AI is enabled and a feature is on: $name',
+      ({ ai, autoTagging, titles, dates, customProperties, expected }) => {
+        const config = overrideConfig({
+          ai: { isEnabled: ai },
+          autoTagging: { isEnabled: autoTagging },
+          documentEnrichment: {
+            titles: { isEnabled: titles },
+            dates: { isEnabled: dates },
+            customProperties: { isEnabled: customProperties },
+          },
+        });
+
+        expect(
+          getPublicConfig({ config, intakeEmailsServices: { getDomains: () => [] } }).publicConfig
+            .documentEnrichment,
+        ).to.eql({ isEnabled: expected });
+      },
+    );
 
     test('exposes an empty domain list when the intake email driver has no selectable domains', () => {
       const config = overrideConfig();

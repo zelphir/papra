@@ -87,6 +87,39 @@ describe('getNormalizedImageData', () => {
 });
 
 describe('pdfImageToBuffer', () => {
+  const rgbImage = ({ width, height }: { width: number; height: number }) => ({
+    width,
+    height,
+    kind: IMAGE_KIND.RGB_24BPP,
+    data: new Uint8Array(width * height * 3).fill(128),
+  });
+
+  test('a page rotation is applied to the image, since embedded images are stored without it', async () => {
+    const buffer = await pdfImageToBuffer(rgbImage({ width: 2000, height: 1000 }), {
+      rotation: 270,
+    });
+
+    expect(await sharp(buffer).metadata()).toMatchObject({ width: 1000, height: 2000 });
+  });
+
+  test('a small image from a phone scan is enlarged for OCR, keeping its proportions', async () => {
+    const buffer = await pdfImageToBuffer(rgbImage({ width: 100, height: 200 }));
+
+    expect(await sharp(buffer).metadata()).toMatchObject({ width: 300, height: 600 });
+  });
+
+  test('a small rotated image is both rotated and enlarged', async () => {
+    const buffer = await pdfImageToBuffer(rgbImage({ width: 100, height: 200 }), { rotation: 90 });
+
+    expect(await sharp(buffer).metadata()).toMatchObject({ width: 600, height: 300 });
+  });
+
+  test('a large image keeps its size', async () => {
+    const buffer = await pdfImageToBuffer(rgbImage({ width: 2000, height: 1000 }));
+
+    expect(await sharp(buffer).metadata()).toMatchObject({ width: 2000, height: 1000 });
+  });
+
   test('sets Tesseract fallback density metadata on the generated PNG', async () => {
     const image = {
       data: new Uint8Array([255, 255, 255]),

@@ -1,3 +1,5 @@
+import { createCustomPropertiesRepository } from '../../custom-properties/custom-properties.repository';
+import { createOrganizationsRepository } from '../../organizations/organizations.repository';
 import { expect, test, vi } from 'vitest';
 import type { Config } from '../../config/config.types';
 import { createAiServices } from '../../ai/ai.services';
@@ -83,9 +85,12 @@ export async function runAutoTaggingTestSuite({
     .mockResolvedValue();
   const { logger } = createTestLogger();
   const enrichDocument = buildEnrichDocument({
+    config,
     aiServices,
     documentsRepository: createDocumentsRepository({ db }),
     tagsRepository: createTagsRepository({ db }),
+    customPropertiesRepository: createCustomPropertiesRepository({ db }),
+    organizationsRepository: createOrganizationsRepository({ db }),
     capabilityDefinitions: [buildTagsEnrichmentCapability({ config, applyAutoTaggingActions })],
     resolveOrganizationSettings: async () => ({
       organizationSettings: {

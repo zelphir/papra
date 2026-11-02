@@ -125,6 +125,21 @@ export async function reprocessDocument({
   });
 }
 
+export async function enrichDocument({
+  documentId,
+  organizationId,
+}: {
+  documentId: string;
+  organizationId: string;
+}) {
+  await apiClient<void>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/documents/${documentId}/enrich`,
+    body: {},
+    retry: 0,
+  });
+}
+
 export async function fetchDocument({
   documentId,
   organizationId,

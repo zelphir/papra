@@ -24,8 +24,18 @@ export function getNormalizedImageData(image: PdfRawImage): Uint8Array {
   return image.data;
 }
 
-export async function pdfImageToBuffer(image: PdfRawImage): Promise<Buffer> {
+// Phone scans embed small images that OCR reads poorly, so they are enlarged first
+const OCR_UPSCALE_MAX_LONG_SIDE = 2000;
+const OCR_UPSCALE_FACTOR = 3;
+
+export async function pdfImageToBuffer(
+  image: PdfRawImage,
+  { rotation = 0 }: { rotation?: number } = {},
+): Promise<Buffer> {
   const imageData = getNormalizedImageData(image);
+  const isSideways = rotation % 180 !== 0;
+  const scale =
+    Math.max(image.width, image.height) < OCR_UPSCALE_MAX_LONG_SIDE ? OCR_UPSCALE_FACTOR : 1;
 
   return (
     sharp(imageData, {
@@ -35,6 +45,9 @@ export async function pdfImageToBuffer(image: PdfRawImage): Promise<Buffer> {
         channels: IMAGE_KIND_CHANNELS[image.kind]!,
       },
     })
+      // Rotation is the page's display rotation, embedded images are stored without it
+      .rotate(rotation)
+      .resize({ width: (isSideways ? image.height : image.width) * scale })
       // PDF image objects have no standalone DPI. Use Tesseract's 70 DPI fallback explicitly so
       // it does not emit an invalid-resolution warning when processing the generated PNG.
       // It's just a meta, doesn't affect the actual pixel data

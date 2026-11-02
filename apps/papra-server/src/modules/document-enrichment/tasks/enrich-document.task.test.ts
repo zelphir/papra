@@ -51,7 +51,7 @@ async function createTestDeps({ aiEnabled = true, autoTaggingEnabled = true } = 
   const generateStructuredData = vi
     .fn<AiServices['generateStructuredData']>()
     .mockResolvedValue({ existingTags: ['Finance'] });
-  const aiServices = { generateStructuredData } as AiServices;
+  const aiServices = { generateStructuredData } as unknown as AiServices;
 
   await documentsStorageService.saveFile({
     storageKey: 'doc_1',
@@ -160,18 +160,21 @@ describe('document enrichment task', () => {
     });
   });
 
-  test('disabling global auto-tagging prevents enrichment registration and scheduling without preventing text extraction', async () => {
+  test('disabling global auto-tagging keeps enrichment registered but excludes tagging, so the AI is not called', async () => {
     const deps = await createTestDeps({ autoTaggingEnabled: false });
+    await deps.organizationSettingsRepository.createOrUpdateOrganizationSettings({
+      organizationId: 'org_1',
+      settings: { aiAutoTaggingEnabled: true },
+    });
 
     await deps.extractDocumentContent();
 
-    expect(deps.taskRegistry.getTask({ taskName: 'enrich-document' }).taskDefinition).toEqual(
-      undefined,
-    );
-    expect(await deps.taskServices.getJobCount()).toEqual({ count: 0 });
-    expect(await deps.documentsRepository.getDocumentById(documentIds)).toMatchObject({
-      document: { content: 'Invoice for office supplies' },
-    });
+    expect(await deps.taskServices.getJobCount()).toEqual({ count: 1 });
+    const { taskDefinition } = deps.taskRegistry.getTaskOrThrow({ taskName: 'enrich-document' });
+    await taskDefinition.handler({ data: documentIds, context });
+
+    expect(deps.generateStructuredData).not.toHaveBeenCalled();
+    expect(await deps.db.select().from(documentsTagsTable)).toEqual([]);
   });
 
   test('a failed extraction does not schedule enrichment', async () => {
