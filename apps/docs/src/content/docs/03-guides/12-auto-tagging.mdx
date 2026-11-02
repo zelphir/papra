@@ -42,6 +42,7 @@ AUTO_TAGGING_ENABLED=true
 | `AUTO_TAGGING_ENABLED` | `true` | Whether organizations are allowed to use auto tagging. |
 | `AUTO_TAGGING_MODEL` | falls back to `AI_DEFAULT_MODEL` | The model used for auto tagging, in `<adapter>://<model>` form. |
 | `AI_ENRICHMENT_MODEL` | falls back to the auto tagging model | The model used for the shared document enrichment request, in `<adapter>://<model>` form. |
+| `AI_ENRICHMENT_TITLES_ENABLED` | `false` | Whether AI gives a descriptive name to documents with meaningless names, like `SCAN_0001.pdf`, using their content. Only documents the user has not renamed are renamed, and the file extension is kept. It shares the enrichment request with auto tagging. |
 | `AUTO_TAGGING_DEFAULT_MAX_TAGS` | `5` | Default maximum number of tags per document. Can be overridden per organization. |
 | `AUTO_TAGGING_INSTRUCTIONS` | none | Optional extra instructions added to the auto tagging prompt, for example the language or naming style to use for tags. |
 

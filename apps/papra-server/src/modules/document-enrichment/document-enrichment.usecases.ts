@@ -13,7 +13,6 @@ import {
   createDocumentEnrichmentContentRequiredError,
   createDocumentEnrichmentDisabledError,
 } from './document-enrichment.errors';
-import type { GenericObjectSchema } from '../shared/schemas/objects.schemas';
 import type { DocumentEnrichmentCapabilityDefinition } from './enrichment-capabilities/enrichment-capabilities-definition';
 import type { AiServices } from '../ai/ai.services';
 import * as v from 'valibot';
@@ -24,7 +23,7 @@ export function buildScheduleDocumentEnrichment({
   resolveOrganizationSettings,
   taskServices,
 }: {
-  config: Pick<Config, 'ai' | 'autoTagging'>;
+  config: Pick<Config, 'ai' | 'autoTagging' | 'documentEnrichment'>;
   documentsRepository: Pick<DocumentsRepository, 'getDocumentById'>;
   resolveOrganizationSettings: ResolveOrganizationSettingsUsecase;
   taskServices: Pick<TaskServices, 'scheduleJob'>;
@@ -58,6 +57,10 @@ export function buildScheduleDocumentEnrichment({
       throw createDocumentEnrichmentDisabledError();
     }
 
+    if (capabilities.includes('title') && !config.documentEnrichment.titles.isEnabled) {
+      throw createDocumentEnrichmentDisabledError();
+    }
+
     if (document.content.trim().length === 0) {
       throw createDocumentEnrichmentContentRequiredError();
     }
@@ -71,7 +74,7 @@ export function buildScheduleDocumentEnrichment({
   };
 }
 
-export function buildEnrichDocument<ResponseSchema extends GenericObjectSchema>({
+export function buildEnrichDocument({
   config,
   capabilityDefinitions,
   documentsRepository,
@@ -81,9 +84,11 @@ export function buildEnrichDocument<ResponseSchema extends GenericObjectSchema>(
   logger = createLogger({ namespace: 'documentEnrichment' }),
 }: {
   config: Pick<Config, 'documentEnrichment'>;
+  // Capabilities each have their own response schema
+  // oxlint-disable-next-line typescript/no-explicit-any
   capabilityDefinitions: DocumentEnrichmentCapabilityDefinition<
     DocumentEnrichmentCapability,
-    ResponseSchema
+    any
   >[];
   documentsRepository: Pick<DocumentsRepository, 'getDocumentById'>;
   tagsRepository: Pick<TagsRepository, 'getOrganizationTags'>;
@@ -195,9 +200,9 @@ export function buildEnrichDocument<ResponseSchema extends GenericObjectSchema>(
     });
 
     const enrichmentResults = await Promise.allSettled(
-      promptContext.map(async ({ capability, responseSchema }) =>
+      promptContext.map(async ({ capability }) =>
         capability.apply({
-          response: enrichmentResponse as v.InferOutput<typeof responseSchema>,
+          response: enrichmentResponse,
           documentId,
           organizationId,
           tags: existingTags,

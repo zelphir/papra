@@ -57,12 +57,13 @@ function createTestAiServices({
 
 async function createTestDeps(
   seedOptions: Parameters<typeof createInMemoryDatabase>[0],
-  { isAiEnabled = true, isAutoTaggingEnabled = true } = {},
+  { isAiEnabled = true, isAutoTaggingEnabled = true, isTitlesEnabled = false } = {},
 ) {
   const { db } = await createInMemoryDatabase(seedOptions);
   const config = overrideConfig({
     ai: { isEnabled: isAiEnabled },
     autoTagging: { isEnabled: isAutoTaggingEnabled },
+    documentEnrichment: { titles: { isEnabled: isTitlesEnabled } },
   });
   const tagsRepository = createTagsRepository({ db });
   const eventServices = createTestEventServices();
@@ -144,6 +145,32 @@ describe('scheduling document enrichment', () => {
       expect(scheduleJob).not.toHaveBeenCalled();
     },
   );
+
+  test.each([
+    ['disabled', { isTitlesEnabled: false }, true],
+    ['enabled', { isTitlesEnabled: true }, false],
+  ])(
+    'an explicit title request is rejected only when titles are %s',
+    async (_, options, isRejected) => {
+      const deps = await createTestDeps(seed, options);
+      const scheduleJob = vi.fn().mockResolvedValue({ jobId: 'job_1' });
+      const scheduleDocumentEnrichment = buildScheduleDocumentEnrichment({
+        config: deps.config,
+        documentsRepository: deps.documentsRepository,
+        resolveOrganizationSettings: createTestResolveOrganizationSettings(),
+        taskServices: { scheduleJob },
+      });
+
+      const request = scheduleDocumentEnrichment({ ...documentIds, capabilities: ['title'] });
+
+      if (isRejected) {
+        await expect(request).rejects.toEqual(createDocumentEnrichmentDisabledError());
+        expect(scheduleJob).not.toHaveBeenCalled();
+      } else {
+        await expect(request).resolves.toEqual({ taskId: 'job_1' });
+      }
+    },
+  );
 });
 
 describe('document enrichment', () => {
@@ -189,7 +216,7 @@ describe('document enrichment', () => {
       .mockReturnValue(false);
     const enrichDocument = buildEnrichDocument({
       ...deps,
-      capabilityDefinitions: [{ ...deps.capabilityDefinitions[0]!, isAvailable }] as never,
+      capabilityDefinitions: [{ ...deps.capabilityDefinitions[0]!, isAvailable }],
       aiServices,
       resolveOrganizationSettings: createTestResolveOrganizationSettings(),
     });

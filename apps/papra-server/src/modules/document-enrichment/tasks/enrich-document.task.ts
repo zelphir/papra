@@ -13,6 +13,7 @@ import type { AiServices } from '../../ai/ai.services';
 import { buildEnrichDocument } from '../document-enrichment.usecases';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
 import { buildTagsEnrichmentCapability } from '../enrichment-capabilities/tags/tags.enrichment-capability';
+import { buildTitleEnrichmentCapability } from '../enrichment-capabilities/title/title.enrichment-capability';
 
 export async function registerEnrichDocumentTask({
   taskServices,
@@ -62,6 +63,7 @@ export async function registerEnrichDocumentTask({
                 applyTagsToDocuments({ ...args, tagsRepository, eventServices, logger }),
             }),
           }),
+          buildTitleEnrichmentCapability({ config, documentsRepository, eventServices }),
         ],
         resolveOrganizationSettings: createResolveOrganizationSettingsUsecase({
           config,
