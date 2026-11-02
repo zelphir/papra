@@ -6,6 +6,7 @@ import type { ChatMiddleware } from '@tanstack/ai';
 import { toStandardJsonSchema } from '@valibot/to-json-schema';
 import type { GenericSchema, InferOutput } from 'valibot';
 import { createLogger } from '../shared/logger/logger';
+import { generateId } from '../shared/random/ids';
 import { createAiCreditsMiddleware } from '../ai-credits/ai-credits.middlewares';
 import type { AiCreditsUsageSource } from '../ai-credits/ai-credits.types';
 import type { AiCreditsRepository } from '../ai-credits/ai-credits.repository';
@@ -115,6 +116,8 @@ async function generateStructuredData<Schema extends GenericSchema | undefined>(
     adapter,
     messages: userPrompt ? [{ role: 'user', content: userPrompt }] : undefined,
     outputSchema: schema ? toStandardJsonSchema(schema) : undefined,
+    threadId: generateId({ prefix: 'ai' }),
+    promptCache: 'none',
     stream: false,
     systemPrompts: systemPrompt ? [systemPrompt] : undefined,
     middleware: [
