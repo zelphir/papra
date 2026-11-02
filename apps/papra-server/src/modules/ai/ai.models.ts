@@ -1,3 +1,4 @@
+import type { Config } from '../config/config.types';
 import { createError } from '../shared/errors/errors';
 import { isNilOrEmptyString } from '../shared/utils';
 import { ADAPTER_MODEL_SEPARATOR } from './ai.constants';
@@ -42,4 +43,10 @@ export function isValidModelId(modelId: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function isDecisionModelConfigured({ config }: { config: Config }): boolean {
+  const { modelId, apiKey } = config.ai.decisions;
+
+  return config.ai.isEnabled && !isNilOrEmptyString(modelId) && !isNilOrEmptyString(apiKey);
 }

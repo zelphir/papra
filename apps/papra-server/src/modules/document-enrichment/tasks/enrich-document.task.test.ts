@@ -51,7 +51,7 @@ async function createTestDeps({ aiEnabled = true, autoTaggingEnabled = true } = 
   const generateStructuredData = vi
     .fn<AiServices['generateStructuredData']>()
     .mockResolvedValue({ existingTags: ['Finance'] });
-  const aiServices = { generateStructuredData } as AiServices;
+  const aiServices = { generateStructuredData } as unknown as AiServices;
 
   await documentsStorageService.saveFile({
     storageKey: 'doc_1',

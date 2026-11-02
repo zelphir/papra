@@ -45,6 +45,9 @@ AUTO_TAGGING_ENABLED=true
 | `AI_ENRICHMENT_TITLES_ENABLED` | `false` | Whether AI gives a descriptive name to documents with meaningless names, like `SCAN_0001.pdf`, using their content. Only documents the user has not renamed are renamed, and the file extension is kept. It shares the enrichment request with auto tagging. |
 | `AI_ENRICHMENT_DATES_ENABLED` | `false` | Whether AI fills in the date of documents that have no date yet, using their content. Dates set by a user are never replaced. It shares the enrichment request with auto tagging. |
 | `AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED` | `false` | Whether AI fills in the empty custom property values of documents, using their content and your organization's property definitions. Text, number, date, yes/no, select and multi select properties are supported, relation properties are not. A property that already has a value is never changed. It shares the enrichment request with auto tagging. |
+| `AI_DECISION_MODEL` | unset | Optional TypeSafe Jev decision model, as a plain model name like `jev-latest`. It answers closed questions with a probability and sits beside your language model, never replacing it. Decisions are off while this is unset. Requires `TYPESAFE_API_KEY`. **Turning this on sends document text to TypeSafe**, a third party, in addition to your language model provider. |
+| `TYPESAFE_API_KEY` | unset | API key for TypeSafe. Decisions need both this and `AI_DECISION_MODEL`. |
+| `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` | Base URL of the TypeSafe API. |
 | `AUTO_TAGGING_DEFAULT_MAX_TAGS` | `5` | Default maximum number of tags per document. Can be overridden per organization. |
 | `AUTO_TAGGING_INSTRUCTIONS` | none | Optional extra instructions added to the auto tagging prompt, for example the language or naming style to use for tags. |
 

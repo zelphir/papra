@@ -51,7 +51,7 @@ function createTestAiServices({
     .mockResolvedValue(response);
 
   return {
-    aiServices: { generateStructuredData } as AiServices,
+    aiServices: { generateStructuredData } as unknown as AiServices,
     generateStructuredData,
   };
 }

@@ -1,5 +1,5 @@
 import { aiModelIdSchema } from './ai.schemas';
-import { booleanishSchema } from '../config/config.schemas';
+import { booleanishSchema, urlSchema } from '../config/config.schemas';
 import type { AppConfigDefinition } from '../config/config.types';
 import * as v from 'valibot';
 import { AI_DEFAULT_MODEL_ENV_KEY } from './ai.constants';
@@ -30,5 +30,25 @@ export const aiConfig = {
     schema: v.optional(aiModelIdSchema),
     env: AI_DEFAULT_MODEL_ENV_KEY,
     default: undefined,
+  },
+  decisions: {
+    modelId: {
+      doc: 'Optional TypeSafe Jev decision model, as a plain model name, e.g. "jev-latest". Leave unset to disable decisions. When set (with TYPESAFE_API_KEY), document text is sent to TypeSafe, a third party, in addition to your language model provider.',
+      schema: v.optional(v.string()),
+      env: 'AI_DECISION_MODEL',
+      default: undefined,
+    },
+    apiKey: {
+      doc: 'API key for TypeSafe, used by the decision model. Document text is sent to TypeSafe when decisions are enabled.',
+      schema: v.string(),
+      env: 'TYPESAFE_API_KEY',
+      default: '',
+    },
+    baseUrl: {
+      doc: 'Base URL of the TypeSafe API, used by the decision model.',
+      schema: urlSchema,
+      env: 'TYPESAFE_BASE_URL',
+      default: 'https://api.typesafe.ai',
+    },
   },
 } as const satisfies AppConfigDefinition;

@@ -1,4 +1,4 @@
-import type { ChatMiddleware, UsageInfo } from '@tanstack/ai';
+import type { ChatMiddleware, GenerationMiddleware, UsageInfo } from '@tanstack/ai';
 import { registerAiCreditLlmUsage } from './ai-credits.usecases';
 import type { AiCreditsUsageSource } from './ai-credits.types';
 import type { AiCreditsRepository } from './ai-credits.repository';
@@ -32,6 +32,27 @@ export function createAiCreditsMiddleware({
         }),
       );
     },
+  };
+}
+
+// decide() has no ctx.defer, usage handling never throws so it is safe to await in the activity
+export function createAiCreditsGenerationMiddleware({
+  modelId,
+  organizationId,
+  source,
+  aiCreditsRepository,
+  logger,
+}: {
+  modelId: string;
+  organizationId: string;
+  source: AiCreditsUsageSource;
+  aiCreditsRepository: AiCreditsRepository;
+  logger: Logger;
+}): GenerationMiddleware {
+  return {
+    name: 'ai-credits',
+    onUsage: async (_ctx, usage) =>
+      handleOnUsage({ modelId, organizationId, usage, source, logger, aiCreditsRepository }),
   };
 }
 

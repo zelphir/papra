@@ -660,6 +660,9 @@ importers:
       '@tanstack/ai-openai':
         specifier: ^1.0.1
         version: 1.0.1(@tanstack/ai@1.0.1(@opentelemetry/api@1.10.0)(zod@4.5.4))(undici@8.5.0)(ws@8.21.0)(zod@4.5.4)
+      '@tanstack/ai-typesafe':
+        specifier: ^1.0.0
+        version: 1.0.0(@tanstack/ai@1.0.1(@opentelemetry/api@1.10.0)(zod@4.5.4))
       '@valibot/to-json-schema':
         specifier: ^1.6.0
         version: 1.6.0(valibot@1.4.2(typescript@7.0.2))
@@ -5293,6 +5296,11 @@ packages:
     resolution: {integrity: sha512-yfchwr7yvAokTzph5QJhH+iePeS5S6VNfT14KlxAcD2VD/a4i2vZUMGUIq5qykWXmOunixaXReQR4lh+NxMjrw==}
     peerDependencies:
       '@tanstack/ai': ^1.0.1
+
+  '@tanstack/ai-typesafe@1.0.0':
+    resolution: {integrity: sha512-pifx8pzxwoKX9vm7xaUmecERYAnawzHvqpePmfT6zBeJLRgRJb2rga9H/iZUhgV1pBWfMbP/6Ea+qDagl2haVQ==}
+    peerDependencies:
+      '@tanstack/ai': ^1.0.0
 
   '@tanstack/ai-utils@1.0.0':
     resolution: {integrity: sha512-0Nl9rUmS3zTGKP8dPmyS2zJ18mieAheKqS9V+390vjViJvD6kpP+1gdCdHkNUqQsSzSFvb32QW8bkTVCAOv0qA==}
@@ -17024,6 +17032,11 @@ snapshots:
       - undici
       - ws
       - zod
+
+  '@tanstack/ai-typesafe@1.0.0(@tanstack/ai@1.0.1(@opentelemetry/api@1.10.0)(zod@4.5.4))':
+    dependencies:
+      '@tanstack/ai': 1.0.1(@opentelemetry/api@1.10.0)(zod@4.5.4)
+      '@tanstack/ai-utils': 1.0.0
 
   '@tanstack/ai-utils@1.0.0': {}
 

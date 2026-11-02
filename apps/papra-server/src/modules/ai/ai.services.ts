@@ -1,16 +1,22 @@
 import type { Logger } from '@crowlog/logger';
 import type { Config } from '../config/config.types';
 import { resolveTextAdapter } from './adapters/ai-adapters.usecases';
-import { EventType, chat as tanstackChat } from '@tanstack/ai';
-import type { ChatMiddleware } from '@tanstack/ai';
+import { EventType, chat as tanstackChat, decide as tanstackDecide } from '@tanstack/ai';
+import type { ChatMiddleware, EvaluateResult, WireQuestion } from '@tanstack/ai';
+import { createTypesafeDecider } from '@tanstack/ai-typesafe';
 import { toStandardJsonSchema } from '@valibot/to-json-schema';
 import type { GenericSchema, InferOutput } from 'valibot';
 import { createLogger } from '../shared/logger/logger';
 import { generateId } from '../shared/random/ids';
-import { createAiCreditsMiddleware } from '../ai-credits/ai-credits.middlewares';
+import {
+  createAiCreditsGenerationMiddleware,
+  createAiCreditsMiddleware,
+} from '../ai-credits/ai-credits.middlewares';
 import type { AiCreditsUsageSource } from '../ai-credits/ai-credits.types';
 import type { AiCreditsRepository } from '../ai-credits/ai-credits.repository';
 import { checkOrganizationHasSufficientAiCredits } from '../ai-credits/ai-credits.usecases';
+import { createError } from '../shared/errors/errors';
+import { isDecisionModelConfigured } from './ai.models';
 import { createGetOrganizationPlanUsecase } from '../plans/plans.usecases';
 import type { PlansRepository } from '../plans/plans.repository';
 import type { PlanEntitlementDefinitionRegistry } from '../plan-entitlements/plan-entitlements.registry';
@@ -62,6 +68,26 @@ export function createAiServices({
         planEntitlementsRepository,
         subscriptionsRepository,
       }),
+
+    isDecisionModelConfigured: isDecisionModelConfigured({ config }),
+
+    // Same generic wrapper as above, so callers get typed answers per question.
+    decide: async <Questions extends Record<string, WireQuestion>>(args: {
+      state: string | object;
+      questions: Questions;
+      source: AiCreditsUsageSource;
+      organizationId: string;
+    }): Promise<EvaluateResult<Questions>> =>
+      decide({
+        ...args,
+        config,
+        logger,
+        aiCreditsRepository,
+        plansRepository,
+        planEntitlementDefinitionRegistry,
+        planEntitlementsRepository,
+        subscriptionsRepository,
+      }),
   };
 }
 
@@ -99,18 +125,15 @@ async function generateStructuredData<Schema extends GenericSchema | undefined>(
     config,
   });
 
-  if (config.ai.credits.isEnabled) {
-    await checkOrganizationHasSufficientAiCredits({
-      organizationId,
-      aiCreditsRepository,
-      getOrganizationPlan: createGetOrganizationPlanUsecase({
-        plansRepository,
-        planEntitlementDefinitionRegistry,
-        planEntitlementsRepository,
-        subscriptionsRepository,
-      }),
-    });
-  }
+  await ensureSufficientAiCredits({
+    organizationId,
+    config,
+    aiCreditsRepository,
+    plansRepository,
+    planEntitlementDefinitionRegistry,
+    planEntitlementsRepository,
+    subscriptionsRepository,
+  });
 
   const data = await tanstackChat({
     adapter,
@@ -137,6 +160,142 @@ async function generateStructuredData<Schema extends GenericSchema | undefined>(
   });
 
   return data as GenerateStructuredDataResult<Schema>;
+}
+
+async function decide<Questions extends Record<string, WireQuestion>>({
+  state,
+  questions,
+  source,
+  organizationId,
+  config,
+  logger,
+  ...creditsDeps
+}: {
+  state: string | object;
+  questions: Questions;
+  source: AiCreditsUsageSource;
+  organizationId: string;
+  config: Config;
+  logger: Logger;
+  aiCreditsRepository: AiCreditsRepository;
+  plansRepository: PlansRepository;
+  planEntitlementDefinitionRegistry: PlanEntitlementDefinitionRegistry;
+  planEntitlementsRepository: PlanEntitlementsRepository;
+  subscriptionsRepository: SubscriptionsRepository;
+}): Promise<EvaluateResult<Questions>> {
+  const { modelId, apiKey, baseUrl } = config.ai.decisions;
+
+  if (!isDecisionModelConfigured({ config }) || !modelId) {
+    throw createError({
+      code: 'ai.decision_model_not_configured',
+      message: 'AI decision model is not configured. Set AI_DECISION_MODEL and TYPESAFE_API_KEY.',
+      statusCode: 500,
+      isInternal: true,
+    });
+  }
+
+  await ensureSufficientAiCredits({ organizationId, config, ...creditsDeps });
+
+  try {
+    return (await tanstackDecide({
+      adapter: createTypesafeDecider(modelId, apiKey, { baseURL: baseUrl }),
+      state,
+      questions,
+      // The adapter logs failures to the console itself, we log them below without the response detail
+      debug: false,
+      middleware: config.ai.credits.isEnabled
+        ? [
+            createAiCreditsGenerationMiddleware({
+              // Rates are keyed by <adapterId>://<modelName>
+              modelId: `typesafe://${modelId}`,
+              organizationId,
+              source,
+              logger,
+              aiCreditsRepository: creditsDeps.aiCreditsRepository,
+            }),
+          ]
+        : [],
+    })) as EvaluateResult<Questions>;
+  } catch (error) {
+    // Only the status is logged, the error message can contain the provider response
+    const status = getErrorStatus(error);
+
+    logger.error(
+      { modelId, status },
+      status === 401
+        ? 'TypeSafe rejected the API key (401), check TYPESAFE_API_KEY'
+        : 'Error making AI decisions',
+    );
+
+    throw error;
+  }
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+  const status = (error as { status?: unknown } | null)?.status;
+
+  return typeof status === 'number' ? status : undefined;
+}
+
+async function ensureSufficientAiCredits({
+  organizationId,
+  config,
+  aiCreditsRepository,
+  plansRepository,
+  planEntitlementDefinitionRegistry,
+  planEntitlementsRepository,
+  subscriptionsRepository,
+}: {
+  organizationId: string;
+  config: Config;
+  aiCreditsRepository: AiCreditsRepository;
+  plansRepository: PlansRepository;
+  planEntitlementDefinitionRegistry: PlanEntitlementDefinitionRegistry;
+  planEntitlementsRepository: PlanEntitlementsRepository;
+  subscriptionsRepository: SubscriptionsRepository;
+}) {
+  if (!config.ai.credits.isEnabled) {
+    return;
+  }
+
+  await checkOrganizationHasSufficientAiCredits({
+    organizationId,
+    aiCreditsRepository,
+    getOrganizationPlan: createGetOrganizationPlanUsecase({
+      plansRepository,
+      planEntitlementDefinitionRegistry,
+      planEntitlementsRepository,
+      subscriptionsRepository,
+    }),
+  });
+}
+
+export function logDecisionModelConfiguration({
+  config,
+  logger,
+}: {
+  config: Config;
+  logger: Logger;
+}) {
+  const { modelId, apiKey, baseUrl } = config.ai.decisions;
+
+  if (!modelId && !apiKey) {
+    return;
+  }
+
+  if (!modelId || !apiKey) {
+    logger.warn(
+      { hasModelId: Boolean(modelId), hasApiKey: Boolean(apiKey) },
+      'AI decisions are disabled: both AI_DECISION_MODEL and TYPESAFE_API_KEY must be set',
+    );
+
+    return;
+  }
+
+  logger.info(
+    { modelId, baseUrl, isAiEnabled: config.ai.isEnabled },
+    'AI decisions are configured, document text will be sent to TypeSafe',
+  );
 }
 
 function createLogMiddleware({

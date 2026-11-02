@@ -98,7 +98,7 @@ async function createTestDeps({
       customPropertiesRepository: createCustomPropertiesRepository({ db }),
       logger,
       resolveOrganizationSettings,
-      aiServices: { generateStructuredData } as AiServices,
+      aiServices: { generateStructuredData } as unknown as AiServices,
       capabilityDefinitions: withTags ? [tagsCapability, titleCapability] : [titleCapability],
     }),
   };

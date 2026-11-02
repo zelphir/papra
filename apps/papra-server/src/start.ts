@@ -25,7 +25,7 @@ import { createTrackingServices } from './modules/tracking/tracking.services';
 import { createWebhookRepository } from './modules/webhooks/webhooks.repository';
 import { createWebhookTriggerServices } from './modules/webhooks/webhooks.trigger.services';
 import { createPlanEntitlementDefinitionRegistry } from './modules/plan-entitlements/plan-entitlements.registry';
-import { createAiServices } from './modules/ai/ai.services';
+import { createAiServices, logDecisionModelConfiguration } from './modules/ai/ai.services';
 import { createAiCreditsRepository } from './modules/ai-credits/ai-credits.repository';
 import { createPlansRepository } from './modules/plans/plans.repository';
 import { createPlanEntitlementsRepository } from './modules/plan-entitlements/plan-entitlements.repository';
@@ -126,6 +126,8 @@ export async function startApp() {
   const logger = createLogger({ namespace: 'app-server' });
 
   const { config } = await parseConfig({ env });
+
+  logDecisionModelConfiguration({ config, logger });
 
   const { isWebMode, isWorkerMode, processMode } = getProcessMode({ config });
 

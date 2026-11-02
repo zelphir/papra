@@ -178,7 +178,7 @@ async function createTestDeps({
       customPropertiesRepository,
       logger,
       resolveOrganizationSettings,
-      aiServices: { generateStructuredData } as AiServices,
+      aiServices: { generateStructuredData } as unknown as AiServices,
       capabilityDefinitions: withOthers
         ? [
             buildTagsEnrichmentCapability({
