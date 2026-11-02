@@ -26,4 +26,12 @@ export const documentEnrichmentConfig = {
       default: false,
     },
   },
+  customProperties: {
+    isEnabled: {
+      doc: 'Whether AI can fill in empty custom property values of documents, from their content and the organization property definitions. Needs to enable global AI features too, with `AI_IS_ENABLED`.',
+      schema: booleanishSchema,
+      env: 'AI_ENRICHMENT_CUSTOM_PROPERTIES_ENABLED',
+      default: false,
+    },
+  },
 } as const satisfies AppConfigDefinition;

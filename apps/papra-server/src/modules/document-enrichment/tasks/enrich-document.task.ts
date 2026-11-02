@@ -14,6 +14,10 @@ import { buildEnrichDocument } from '../document-enrichment.usecases';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
 import { buildTagsEnrichmentCapability } from '../enrichment-capabilities/tags/tags.enrichment-capability';
 import { buildTitleEnrichmentCapability } from '../enrichment-capabilities/title/title.enrichment-capability';
+import { createCustomPropertiesRepository } from '../../custom-properties/custom-properties.repository';
+import { createCustomPropertiesOptionsRepository } from '../../custom-properties/options/custom-properties-options.repository';
+import { createOrganizationsRepository } from '../../organizations/organizations.repository';
+import { buildCustomPropertiesEnrichmentCapability } from '../enrichment-capabilities/custom-properties/custom-properties.enrichment-capability';
 import { buildDateEnrichmentCapability } from '../enrichment-capabilities/date/date.enrichment-capability';
 
 export async function registerEnrichDocumentTask({
@@ -40,6 +44,7 @@ export async function registerEnrichDocumentTask({
     handler: async ({ data }) => {
       const documentsRepository = createDocumentsRepository({ db });
       const tagsRepository = createTagsRepository({ db });
+      const customPropertiesRepository = createCustomPropertiesRepository({ db });
       const organizationSettingsRepository = createOrganizationSettingsRepository({ db });
 
       // TODO: remove type cast
@@ -54,6 +59,7 @@ export async function registerEnrichDocumentTask({
         config,
         documentsRepository,
         tagsRepository,
+        customPropertiesRepository,
         logger,
         capabilityDefinitions: [
           buildTagsEnrichmentCapability({
@@ -66,6 +72,14 @@ export async function registerEnrichDocumentTask({
           }),
           buildTitleEnrichmentCapability({ config, documentsRepository, eventServices }),
           buildDateEnrichmentCapability({ config, documentsRepository, eventServices }),
+          buildCustomPropertiesEnrichmentCapability({
+            config,
+            documentsRepository,
+            customPropertiesRepository,
+            customPropertiesOptionsRepository: createCustomPropertiesOptionsRepository({ db }),
+            organizationsRepository: createOrganizationsRepository({ db }),
+            logger,
+          }),
         ],
         resolveOrganizationSettings: createResolveOrganizationSettingsUsecase({
           config,

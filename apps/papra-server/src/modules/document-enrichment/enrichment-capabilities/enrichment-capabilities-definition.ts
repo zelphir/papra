@@ -3,7 +3,18 @@ import type { OrganizationSettings } from '../../organizations/organization-sett
 import type { GenericObjectSchema } from '../../shared/schemas/objects.schemas';
 import type { Document } from '../../documents/documents.types';
 import type { Tag } from '../../tags/tags.types';
+import type { CustomPropertiesRepository } from '../../custom-properties/custom-properties.repository';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
+
+// Loaded only when a selected capability lists 'custom-properties' in its documentInfoRequirements, empty otherwise
+export type EnrichmentCustomProperties = {
+  definitions: Awaited<
+    ReturnType<CustomPropertiesRepository['getOrganizationPropertyDefinitions']>
+  >['propertyDefinitions'];
+  values: Awaited<
+    ReturnType<CustomPropertiesRepository['getDocumentCustomPropertyValues']>
+  >['values'];
+};
 
 export type DocumentEnrichmentCapabilityDefinition<
   Name extends string = string,
@@ -15,11 +26,13 @@ export type DocumentEnrichmentCapabilityDefinition<
     organizationSettings: OrganizationSettings;
     tags: Tag[];
     document: Document;
+    customProperties: EnrichmentCustomProperties;
   }) => boolean;
 
   buildSystemPromptFragments: (args: {
     organizationSettings: OrganizationSettings;
     tags: Tag[];
+    customProperties: EnrichmentCustomProperties;
   }) => {
     fragment: string;
   };
@@ -27,6 +40,7 @@ export type DocumentEnrichmentCapabilityDefinition<
   getResponseSchema: (args: {
     organizationSettings: OrganizationSettings;
     tags: Tag[];
+    customProperties: EnrichmentCustomProperties;
   }) => ResponseSchema;
 
   apply: (args: {
@@ -35,6 +49,7 @@ export type DocumentEnrichmentCapabilityDefinition<
     response: InferOutput<ResponseSchema>;
     organizationSettings: OrganizationSettings;
     tags: Tag[];
+    customProperties: EnrichmentCustomProperties;
   }) => Promise<void>;
 
   documentInfoRequirements: ('tags' | 'custom-properties')[];

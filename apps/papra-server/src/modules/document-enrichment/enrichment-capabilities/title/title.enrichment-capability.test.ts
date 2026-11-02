@@ -5,6 +5,7 @@ import { createInMemoryDatabase } from '../../../app/database/database.test-util
 import { createTestEventServices } from '../../../app/events/events.test-utils';
 import { buildApplyAutoTaggingActions } from '../../../auto-tagging/auto-tagging.usecases';
 import { overrideConfig } from '../../../config/config.test-utils';
+import { createCustomPropertiesRepository } from '../../../custom-properties/custom-properties.repository';
 import { createDocumentsRepository } from '../../../documents/documents.repository';
 import type { ResolveOrganizationSettingsUsecase } from '../../../organizations/organization-settings/organization-settings.usecases';
 import { createTestLogger } from '../../../shared/logger/logger.test-utils';
@@ -94,6 +95,7 @@ async function createTestDeps({
       config,
       documentsRepository,
       tagsRepository,
+      customPropertiesRepository: createCustomPropertiesRepository({ db }),
       logger,
       resolveOrganizationSettings,
       aiServices: { generateStructuredData } as AiServices,

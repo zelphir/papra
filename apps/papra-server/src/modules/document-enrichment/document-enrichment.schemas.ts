@@ -1,6 +1,11 @@
 import * as v from 'valibot';
 
-export const documentEnrichmentCapabilitySchema = v.picklist(['auto-tagging', 'title', 'date']);
+export const documentEnrichmentCapabilitySchema = v.picklist([
+  'auto-tagging',
+  'title',
+  'date',
+  'custom-properties',
+]);
 
 export type DocumentEnrichmentCapability = v.InferOutput<typeof documentEnrichmentCapabilitySchema>;
 

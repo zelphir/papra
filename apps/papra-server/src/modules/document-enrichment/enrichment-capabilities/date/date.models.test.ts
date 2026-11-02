@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseDocumentDate } from './date.models';
+import { parseCalendarDate, parseDocumentDate } from './date.models';
 
 const now = new Date('2026-03-15T10:00:00.000Z');
 
@@ -59,5 +59,15 @@ describe('parsing an AI suggested document date', () => {
 
   test('a null suggestion gives no date', () => {
     expect(parseDocumentDate({ value: null, now })).toEqual(undefined);
+  });
+});
+
+describe('parsing an AI suggested calendar date', () => {
+  test('a future date is valid, as for an expiry date, but an impossible or too old one is not', () => {
+    expect(parseCalendarDate({ value: '2099-12-31' })).toEqual(
+      new Date('2099-12-31T12:00:00.000Z'),
+    );
+    expect(parseCalendarDate({ value: '2026-02-30' })).toEqual(undefined);
+    expect(parseCalendarDate({ value: '1899-12-31' })).toEqual(undefined);
   });
 });

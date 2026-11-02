@@ -4,6 +4,7 @@ import { createDocumentNotFoundError } from '../documents/documents.errors';
 import type { DocumentsRepository } from '../documents/documents.repository';
 import type { ResolveOrganizationSettingsUsecase } from '../organizations/organization-settings/organization-settings.usecases';
 import { createLogger } from '../shared/logger/logger';
+import type { CustomPropertiesRepository } from '../custom-properties/custom-properties.repository';
 import type { TagsRepository } from '../tags/tags.repository';
 import type { Config } from '../config/config.types';
 import type { TaskServices } from '../tasks/tasks.services';
@@ -65,6 +66,13 @@ export function buildScheduleDocumentEnrichment({
       throw createDocumentEnrichmentDisabledError();
     }
 
+    if (
+      capabilities.includes('custom-properties') &&
+      !config.documentEnrichment.customProperties.isEnabled
+    ) {
+      throw createDocumentEnrichmentDisabledError();
+    }
+
     if (document.content.trim().length === 0) {
       throw createDocumentEnrichmentContentRequiredError();
     }
@@ -83,6 +91,7 @@ export function buildEnrichDocument({
   capabilityDefinitions,
   documentsRepository,
   tagsRepository,
+  customPropertiesRepository,
   resolveOrganizationSettings,
   aiServices,
   logger = createLogger({ namespace: 'documentEnrichment' }),
@@ -96,6 +105,10 @@ export function buildEnrichDocument({
   >[];
   documentsRepository: Pick<DocumentsRepository, 'getDocumentById'>;
   tagsRepository: Pick<TagsRepository, 'getOrganizationTags'>;
+  customPropertiesRepository: Pick<
+    CustomPropertiesRepository,
+    'getOrganizationPropertyDefinitions' | 'getDocumentCustomPropertyValues'
+  >;
   resolveOrganizationSettings: ResolveOrganizationSettingsUsecase;
   aiServices: AiServices;
   logger?: Logger;
@@ -121,18 +134,38 @@ export function buildEnrichDocument({
       return;
     }
 
-    const [{ document }, { tags: existingTags }, { organizationSettings }] = await Promise.all([
-      documentsRepository.getDocumentById({ documentId, organizationId }),
-      tagsRepository.getOrganizationTags({ organizationId }),
-      resolveOrganizationSettings({ organizationId }),
-    ]);
+    // Property queries only run when a selected capability asks for them, i.e. when it is enabled
+    const requireCustomProperties = selectedCapabilities.some((capability) =>
+      capability.documentInfoRequirements?.includes('custom-properties'),
+    );
+
+    const [{ document }, { tags: existingTags }, { organizationSettings }, customProperties] =
+      await Promise.all([
+        documentsRepository.getDocumentById({ documentId, organizationId }),
+        tagsRepository.getOrganizationTags({ organizationId }),
+        resolveOrganizationSettings({ organizationId }),
+        requireCustomProperties
+          ? Promise.all([
+              customPropertiesRepository.getOrganizationPropertyDefinitions({ organizationId }),
+              customPropertiesRepository.getDocumentCustomPropertyValues({ documentId }),
+            ]).then(([{ propertyDefinitions }, { values }]) => ({
+              definitions: propertyDefinitions,
+              values,
+            }))
+          : { definitions: [], values: [] },
+      ]);
 
     if (!document || document.isDeleted) {
       throw createDocumentNotFoundError();
     }
 
     const availableCapabilities = selectedCapabilities.filter((capability) =>
-      capability.isAvailable({ organizationSettings, tags: existingTags, document }),
+      capability.isAvailable({
+        organizationSettings,
+        tags: existingTags,
+        document,
+        customProperties,
+      }),
     );
 
     if (availableCapabilities.length === 0) {
@@ -148,10 +181,12 @@ export function buildEnrichDocument({
       systemPromptFragments: capability.buildSystemPromptFragments({
         organizationSettings,
         tags: existingTags,
+        customProperties,
       }),
       responseSchema: capability.getResponseSchema({
         organizationSettings,
         tags: existingTags,
+        customProperties,
       }),
     }));
 
@@ -211,6 +246,7 @@ export function buildEnrichDocument({
           organizationId,
           tags: existingTags,
           organizationSettings,
+          customProperties,
         }),
       ),
     );
