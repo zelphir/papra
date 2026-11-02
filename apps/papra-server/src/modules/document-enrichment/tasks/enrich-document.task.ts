@@ -14,6 +14,7 @@ import { buildEnrichDocument } from '../document-enrichment.usecases';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
 import { buildTagsEnrichmentCapability } from '../enrichment-capabilities/tags/tags.enrichment-capability';
 import { buildTitleEnrichmentCapability } from '../enrichment-capabilities/title/title.enrichment-capability';
+import { buildDateEnrichmentCapability } from '../enrichment-capabilities/date/date.enrichment-capability';
 
 export async function registerEnrichDocumentTask({
   taskServices,
@@ -64,6 +65,7 @@ export async function registerEnrichDocumentTask({
             }),
           }),
           buildTitleEnrichmentCapability({ config, documentsRepository, eventServices }),
+          buildDateEnrichmentCapability({ config, documentsRepository, eventServices }),
         ],
         resolveOrganizationSettings: createResolveOrganizationSettingsUsecase({
           config,

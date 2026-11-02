@@ -18,4 +18,12 @@ export const documentEnrichmentConfig = {
       default: false,
     },
   },
+  dates: {
+    isEnabled: {
+      doc: 'Whether AI can fill in the date of documents that do not have one yet, from their content. Needs to enable global AI features too, with `AI_IS_ENABLED`.',
+      schema: booleanishSchema,
+      env: 'AI_ENRICHMENT_DATES_ENABLED',
+      default: false,
+    },
+  },
 } as const satisfies AppConfigDefinition;

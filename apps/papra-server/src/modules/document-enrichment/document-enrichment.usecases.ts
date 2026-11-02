@@ -61,6 +61,10 @@ export function buildScheduleDocumentEnrichment({
       throw createDocumentEnrichmentDisabledError();
     }
 
+    if (capabilities.includes('date') && !config.documentEnrichment.dates.isEnabled) {
+      throw createDocumentEnrichmentDisabledError();
+    }
+
     if (document.content.trim().length === 0) {
       throw createDocumentEnrichmentContentRequiredError();
     }
