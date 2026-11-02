@@ -18,6 +18,12 @@ export const autoTaggingConfig = {
     env: ['AUTO_TAGGING_MODEL', AI_DEFAULT_MODEL_ENV_KEY],
     default: undefined,
   },
+  instructions: {
+    doc: 'Optional extra instructions appended to the AI auto-tagging prompt, for example to set the language or naming style of tags. Written by the instance operator, so it is trusted.',
+    schema: v.optional(v.string()),
+    env: 'AUTO_TAGGING_INSTRUCTIONS',
+    default: undefined,
+  },
   defaultMaxTags: {
     doc: 'The default maximum number of tags that can be assigned by AI auto-tagging. This can be overridden per organization in the organization settings.',
     schema: coercedStrictlyPositiveIntegerSchema,

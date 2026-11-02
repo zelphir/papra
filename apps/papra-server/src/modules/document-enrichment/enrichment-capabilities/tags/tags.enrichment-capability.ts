@@ -25,6 +25,7 @@ export const buildTagsEnrichmentCapability = defineDocumentEnrichmentCapabilityF
 
       buildSystemPromptFragments: ({ organizationSettings }) => {
         const { canCreateNewTags, maxTags } = organizationSettings.ai.autoTagging;
+        const { instructions } = config.autoTagging;
 
         return {
           fragment: [
@@ -38,11 +39,22 @@ export const buildTagsEnrichmentCapability = defineDocumentEnrichmentCapabilityF
                   '- You may suggest new tags that do not exist yet.',
                   '- If you suggest new tags, provide an optional description for each new tag.',
                   '- Do not suggest new tags that are too similar to existing tags.',
+                  '- Prefer existing tags whenever one fits.',
+                  '- New tags must be short, general categories that would apply to many documents, not unique details such as names, numbers or dates.',
+                  '- New tags must follow the language and naming style of the existing tags, when there are any.',
                 ]
               : [
                   '- You may only suggest existing tags.',
                   '- If no relevant tags can be found, return an empty list.',
                 ]),
+
+            ...(instructions?.trim()
+              ? [
+                  '',
+                  'ADDITIONAL TAGGING INSTRUCTIONS (from the administrator):',
+                  instructions.trim(),
+                ]
+              : []),
           ].join('\n'),
         };
       },
