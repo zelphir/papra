@@ -83,6 +83,7 @@ export async function runAutoTaggingTestSuite({
     .mockResolvedValue();
   const { logger } = createTestLogger();
   const enrichDocument = buildEnrichDocument({
+    config,
     aiServices,
     documentsRepository: createDocumentsRepository({ db }),
     tagsRepository: createTagsRepository({ db }),

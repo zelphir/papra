@@ -1,6 +1,7 @@
 import type { InferOutput } from 'valibot';
 import type { OrganizationSettings } from '../../organizations/organization-settings/organization-settings.types';
 import type { GenericObjectSchema } from '../../shared/schemas/objects.schemas';
+import type { Document } from '../../documents/documents.types';
 import type { Tag } from '../../tags/tags.types';
 import type { DocumentEnrichmentCapability } from '../document-enrichment.schemas';
 
@@ -10,7 +11,11 @@ export type DocumentEnrichmentCapabilityDefinition<
 > = {
   name: Name;
 
-  isAvailable: (args: { organizationSettings: OrganizationSettings; tags: Tag[] }) => boolean;
+  isAvailable: (args: {
+    organizationSettings: OrganizationSettings;
+    tags: Tag[];
+    document: Document;
+  }) => boolean;
 
   buildSystemPromptFragments: (args: {
     organizationSettings: OrganizationSettings;

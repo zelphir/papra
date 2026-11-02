@@ -54,7 +54,7 @@ export async function registerExtractDocumentFileContentTask({
         extractDocumentText,
       });
 
-      if (!config.ai.isEnabled || !config.autoTagging.isEnabled) {
+      if (!config.ai.isEnabled) {
         return;
       }
 

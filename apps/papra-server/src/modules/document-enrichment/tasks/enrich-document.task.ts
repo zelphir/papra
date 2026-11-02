@@ -27,7 +27,7 @@ export async function registerEnrichDocumentTask({
   config: Config;
   eventServices: EventServices;
 }) {
-  if (!config.ai.isEnabled || !config.autoTagging.isEnabled) {
+  if (!config.ai.isEnabled) {
     return;
   }
 
@@ -49,6 +49,7 @@ export async function registerEnrichDocumentTask({
 
       const logger = createLogger({ namespace: 'documentEnrichment' });
       const enrichDocument = buildEnrichDocument({
+        config,
         documentsRepository,
         tagsRepository,
         logger,

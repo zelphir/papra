@@ -41,6 +41,7 @@ AUTO_TAGGING_ENABLED=true
 | `AI_IS_ENABLED` | `false` | Master switch for all AI features. Must be `true`. |
 | `AUTO_TAGGING_ENABLED` | `true` | Whether organizations are allowed to use auto tagging. |
 | `AUTO_TAGGING_MODEL` | falls back to `AI_DEFAULT_MODEL` | The model used for auto tagging, in `<adapter>://<model>` form. |
+| `AI_ENRICHMENT_MODEL` | falls back to the auto tagging model | The model used for the shared document enrichment request, in `<adapter>://<model>` form. |
 | `AUTO_TAGGING_DEFAULT_MAX_TAGS` | `5` | Default maximum number of tags per document. Can be overridden per organization. |
 
 Once enabled on the server, organizations can turn auto tagging on in their settings.
