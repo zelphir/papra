@@ -48,5 +48,9 @@ export function isValidModelId(modelId: string): boolean {
 export function isDecisionModelConfigured({ config }: { config: Config }): boolean {
   const { modelId, apiKey } = config.ai.decisions;
 
-  return config.ai.isEnabled && !isNilOrEmptyString(modelId) && !isNilOrEmptyString(apiKey);
+  return (
+    config.ai.isEnabled &&
+    !isNilOrEmptyString(modelId?.trim()) &&
+    !isNilOrEmptyString(apiKey.trim())
+  );
 }

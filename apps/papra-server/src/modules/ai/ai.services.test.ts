@@ -151,6 +151,8 @@ describe('ai services', () => {
           { isAiEnabled: false, decisions: { modelId: 'jev-latest', apiKey: API_KEY } },
         ],
         ['only the model is set', { decisions: { modelId: 'jev-latest', apiKey: '' } }],
+        ['the model is only whitespace', { decisions: { modelId: ' ', apiKey: 'key' } }],
+        ['the key is only whitespace', { decisions: { modelId: 'jev-latest', apiKey: ' ' } }],
         ['only the api key is set', { decisions: { apiKey: API_KEY } }],
       ])('decisions are not configured when %s', async (_, options) => {
         const { aiServices } = await createTestAiServices(options);

@@ -239,7 +239,7 @@ describe('document enrichment decisions', () => {
       title__clear: bool(confidentYes),
       auto_tagging__tag_0: bool(confidentYes),
       auto_tagging__tag_1: bool(confidentNo),
-      custom_properties__property_0: bool(confidentNo),
+      custom_properties__property_0: bool(confidentYes),
       custom_properties__property_1: pick(1, confidentYes),
     };
 
@@ -252,7 +252,7 @@ describe('document enrichment decisions', () => {
       expect(deps.generateStructuredData).not.toHaveBeenCalled();
       expect(await deps.getTagIds()).toEqual(['tag_0']);
       expect(await deps.getName()).toEqual('SCAN_0001.pdf');
-      expect(await deps.getValues()).toEqual({ cpd_paid: false, cpd_category: 'Quote' });
+      expect(await deps.getValues()).toEqual({ cpd_paid: true, cpd_category: 'Quote' });
     });
 
     test('a text property still goes to the language model', async () => {
@@ -265,7 +265,7 @@ describe('document enrichment decisions', () => {
       await deps.enrichDocument(documentIds);
 
       expect(deps.getSchemaKeys()).toEqual(['customProperties']);
-      expect(await deps.getValues()).toEqual({ cpd_paid: false, cpd_category: 'Quote' });
+      expect(await deps.getValues()).toEqual({ cpd_paid: true, cpd_category: 'Quote' });
     });
   });
 
@@ -427,7 +427,21 @@ describe('document enrichment decisions', () => {
   });
 
   describe('properties', () => {
-    test('a boolean property is set to true or false only on a clear answer', async () => {
+    test('a clear no on a boolean property writes nothing and leaves it to the language model, since the document may simply not mention it', async () => {
+      const deps = await createTestDeps({
+        answers: { custom_properties__property_0: bool(confidentNo) },
+        languageModelResponse: {
+          customProperties: { paid: null, category: null, reference: null },
+        },
+      });
+
+      await deps.enrichDocument(documentIds);
+
+      expect(deps.generateStructuredData.mock.calls[0]![0].systemPrompt).toContain('"key":"paid"');
+      expect(await deps.getValues()).toEqual({});
+    });
+
+    test('a boolean property is set to true only on a clear yes', async () => {
       const unclear = await createTestDeps({
         answers: { custom_properties__property_0: bool(0.5) },
         languageModelResponse: {

@@ -2,7 +2,7 @@ import { boolean, choice } from '@tanstack/ai';
 import * as v from 'valibot';
 import { CUSTOM_PROPERTY_TYPES } from '../../../custom-properties/custom-properties.constants';
 import { nullableOrNull } from '../../document-enrichment.schemas';
-import { isClearNo, isClearYes } from '../../document-enrichment.decisions';
+import { isClearYes } from '../../document-enrichment.decisions';
 import { parseCalendarDate } from '../date/date.models';
 import type {
   DecisionAnswer,
@@ -213,8 +213,9 @@ export function resolveCustomPropertiesDecisions({
     }
 
     if (answer.type === 'boolean') {
-      if (isClearYes(answer.probability) || isClearNo(answer.probability)) {
-        values[property.key] = isClearYes(answer.probability);
+      // A clear no only means the document does not state it is true, which is not a false value
+      if (isClearYes(answer.probability)) {
+        values[property.key] = true;
         decidedIds.add(property.id);
       }
       return;
